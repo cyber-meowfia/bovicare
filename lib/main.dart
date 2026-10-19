@@ -29,11 +29,19 @@ class BoviCareApp extends StatelessWidget {
 }
 
 class Cow {
-  const Cow({required this.name, required this.id, required this.status});
+  const Cow({
+    required this.name,
+    required this.id,
+    required this.status,
+    this.breed = 'Gir',
+    this.healthScore = 95,
+  });
 
   final String name;
   final String id;
   final String status;
+  final String breed;
+  final int healthScore;
 }
 
 class HealthRecord {
@@ -61,81 +69,311 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   int selectedTab = 0;
+  String topNavMode = 'Home'; // 'Login', 'Home', 'Profile'
   bool marathi = false;
-  final List<Cow> cows = [];
-  final List<HealthRecord> records = [];
+
+  final List<Cow> cows = [
+    const Cow(
+      name: 'Ganga',
+      id: 'COW-001',
+      status: 'Healthy',
+      breed: 'Holstein',
+      healthScore: 95,
+    ),
+    const Cow(
+      name: 'Nandini',
+      id: 'COW-002',
+      status: 'Attention',
+      breed: 'Jersey',
+      healthScore: 64,
+    ),
+    const Cow(
+      name: 'Lakshmi',
+      id: 'COW-003',
+      status: 'Healthy',
+      breed: 'Sahiwal',
+      healthScore: 92,
+    ),
+  ];
+
+  final List<HealthRecord> records = [
+    HealthRecord(
+      cowName: 'Lakshmi',
+      cowId: 'COW-003',
+      date: DateTime.now().subtract(const Duration(days: 1)),
+      result: 'Healthy',
+      notes: 'Routine herd assessment. Clear milk, healthy udder.',
+    ),
+    HealthRecord(
+      cowName: 'Nandini',
+      cowId: 'COW-002',
+      date: DateTime.now().subtract(const Duration(days: 2)),
+      result: 'Needs follow-up',
+      notes: 'Slight redness observed on rear quarter.',
+    ),
+  ];
 
   String _translate(String english, String marathiText) {
     return marathi ? marathiText : english;
   }
 
   void _selectTab(int index) {
-    setState(() => selectedTab = index);
+    setState(() {
+      selectedTab = index;
+      topNavMode = 'Home';
+    });
   }
 
   List<Widget> get pages => [
-    DashboardScreen(
-      cows: cows,
-      records: records,
-      marathi: marathi,
-      tr: _translate,
-      onAssess: () => _selectTab(2),
-      onCows: () => _selectTab(1),
-      onRecords: () => _selectTab(3),
-    ),
-    MyCowsPage(cows: cows, onBack: () => _selectTab(0)),
-    AssessPage(onBack: () => _selectTab(0)),
-    HealthRecordsPage(records: records, onBack: () => _selectTab(0)),
-    const SimpleScreen(
-      icon: Icons.person_rounded,
-      title: 'Your Profile',
-      subtitle: 'Manage your farm information.',
-    ),
-  ];
+        DashboardScreen(
+          cows: cows,
+          records: records,
+          marathi: marathi,
+          tr: _translate,
+          onAssess: () => _selectTab(2),
+          onCows: () => _selectTab(1),
+          onRecords: () => _selectTab(3),
+        ),
+        MyCowsPage(cows: cows, onBack: () => _selectTab(0)),
+        AssessPage(onBack: () => _selectTab(0)),
+        HealthRecordsPage(records: records, onBack: () => _selectTab(0)),
+        BoviCareProfilePage(
+          onBack: () => _selectTab(0),
+          onLogout: () {
+            setState(() => topNavMode = 'Login');
+          },
+        ),
+      ];
 
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: cream,
-      body: SafeArea(
-        bottom: false,
-        child: IndexedStack(index: selectedTab, children: pages),
+  Widget _buildTopPills() {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        _topPill('Login', () {
+          setState(() => topNavMode = 'Login');
+        }),
+        const SizedBox(width: 8),
+        _topPill('Home', () {
+          setState(() {
+            topNavMode = 'Home';
+            selectedTab = 0;
+          });
+        }),
+        const SizedBox(width: 8),
+        _topPill('Profile', () {
+          setState(() {
+            topNavMode = 'Home';
+            selectedTab = 4;
+          });
+        }),
+      ],
+    );
+  }
+
+  Widget _topPill(String title, VoidCallback onTap) {
+    final isSelected = (title == 'Home' && topNavMode == 'Home' && selectedTab != 4) ||
+        (title == 'Profile' && (topNavMode == 'Profile' || (topNavMode == 'Home' && selectedTab == 4))) ||
+        (title == 'Login' && topNavMode == 'Login');
+
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(10),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 8),
+        decoration: BoxDecoration(
+          color: isSelected ? const Color(0xFF232724) : Colors.transparent,
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(
+            color: isSelected ? const Color(0xFF5A635B) : const Color(0xFF323633),
+            width: 1.2,
+          ),
+        ),
+        child: Text(
+          title,
+          style: TextStyle(
+            color: isSelected ? Colors.white : const Color(0xFF9EAAA0),
+            fontSize: 13,
+            fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
+          ),
+        ),
       ),
-      bottomNavigationBar: NavigationBar(
-        selectedIndex: selectedTab,
-        onDestinationSelected: _selectTab,
-        backgroundColor: Colors.white,
-        indicatorColor: const Color(0xFFDDEFE2),
-        destinations: const [
-          NavigationDestination(
-            icon: Icon(Icons.home_outlined),
-            selectedIcon: Icon(Icons.home_rounded),
-            label: 'Home',
+    );
+  }
+
+  Widget _buildPhoneBottomNav() {
+    return Container(
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        border: Border(
+          top: BorderSide(color: Color(0xFFE9ECE5), width: 1),
+        ),
+      ),
+      padding: const EdgeInsets.fromLTRB(6, 6, 6, 8),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceAround,
+        children: [
+          _navDestination(0, Icons.home_rounded, Icons.home_outlined, 'Home'),
+          _navDestination(1, Icons.pets_rounded, Icons.pets_outlined, 'My Cows'),
+          _navDestination(
+            2,
+            Icons.health_and_safety_rounded,
+            Icons.health_and_safety_outlined,
+            'Assess',
           ),
-          NavigationDestination(
-            icon: Icon(Icons.pets_outlined),
-            selectedIcon: Icon(Icons.pets_rounded),
-            label: 'My Cows',
+          _navDestination(
+            3,
+            Icons.assignment_rounded,
+            Icons.assignment_outlined,
+            'Records',
           ),
-          NavigationDestination(
-            icon: Icon(Icons.health_and_safety_outlined),
-            label: 'Assess',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.history_rounded),
-            label: 'Records',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.person_outline_rounded),
-            label: 'Profile',
+          _navDestination(
+            4,
+            Icons.person_rounded,
+            Icons.person_outline_rounded,
+            'Profile',
           ),
         ],
       ),
     );
   }
+
+  Widget _navDestination(
+    int index,
+    IconData activeIcon,
+    IconData inactiveIcon,
+    String label,
+  ) {
+    final isSelected = (topNavMode == 'Home' && selectedTab == index);
+
+    return InkWell(
+      onTap: () => _selectTab(index),
+      borderRadius: BorderRadius.circular(16),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (isSelected)
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFCFE4B9),
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: Icon(
+                  activeIcon,
+                  color: const Color(0xFF385F14),
+                  size: 20,
+                ),
+              )
+            else
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 4),
+                child: Icon(
+                  inactiveIcon,
+                  color: const Color(0xFF5A665D),
+                  size: 20,
+                ),
+              ),
+            const SizedBox(height: 3),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 11,
+                fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                color: isSelected ? const Color(0xFF385F14) : const Color(0xFF5A665D),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final screenSize = MediaQuery.of(context).size;
+    final isWide = screenSize.width > 480;
+
+    Widget currentScreenContent;
+    if (topNavMode == 'Login') {
+      currentScreenContent = BoviCareLoginPage(
+        onLoginSuccess: () {
+          setState(() {
+            topNavMode = 'Home';
+            selectedTab = 0;
+          });
+        },
+      );
+    } else {
+      currentScreenContent = Column(
+        children: [
+          Expanded(
+            child: IndexedStack(
+              index: selectedTab,
+              children: pages,
+            ),
+          ),
+          _buildPhoneBottomNav(),
+        ],
+      );
+    }
+
+    if (!isWide) {
+      return Scaffold(
+        backgroundColor: const Color(0xFFF7F8F4),
+        body: SafeArea(
+          bottom: false,
+          child: currentScreenContent,
+        ),
+      );
+    }
+
+    final phoneHeight = (screenSize.height - 90).clamp(740.0, 850.0);
+
+    return Scaffold(
+      backgroundColor: const Color(0xFF131514),
+      body: SafeArea(
+        child: Center(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.symmetric(vertical: 16),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                _buildTopPills(),
+                const SizedBox(height: 16),
+                Container(
+                  width: 390,
+                  height: phoneHeight,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF7F8F4),
+                    borderRadius: BorderRadius.circular(44),
+                    border: Border.all(
+                      color: const Color(0xFF2B2E2B),
+                      width: 3.5,
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.6),
+                        blurRadius: 36,
+                        spreadRadius: 2,
+                        offset: const Offset(0, 14),
+                      ),
+                    ],
+                  ),
+                  clipBehavior: Clip.antiAlias,
+                  child: currentScreenContent,
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 }
 
-class DashboardScreen extends StatelessWidget {
+class DashboardScreen extends StatefulWidget {
   const DashboardScreen({
     super.key,
     required this.cows,
@@ -155,246 +393,477 @@ class DashboardScreen extends StatelessWidget {
   final VoidCallback onCows;
   final VoidCallback onRecords;
 
-  static const Color forest = Color(0xFF176B45);
-  static const Color cream = Color(0xFFF8F7F0);
-  static const Color ink = Color(0xFF20352A);
-  static const Color muted = Color(0xFF77857A);
+  @override
+  State<DashboardScreen> createState() => _DashboardScreenState();
+}
+
+class _DashboardScreenState extends State<DashboardScreen> {
+  String selectedAction = 'All';
+
+  Widget _quickActionItem(String title, IconData icon) {
+    final isSelected = selectedAction == title;
+
+    return InkWell(
+      onTap: () {
+        setState(() => selectedAction = title);
+      },
+      borderRadius: BorderRadius.circular(16),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
+        width: 58,
+        height: 72,
+        decoration: BoxDecoration(
+          color: isSelected ? const Color(0xFF487222) : Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: isSelected ? const Color(0xFF487222) : const Color(0xFFE5EAE1),
+            width: 1.2,
+          ),
+          boxShadow: isSelected
+              ? [
+                  BoxShadow(
+                    color: const Color(0xFF487222).withValues(alpha: 0.25),
+                    blurRadius: 8,
+                    offset: const Offset(0, 3),
+                  ),
+                ]
+              : null,
+        ),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              icon,
+              size: 22,
+              color: isSelected ? Colors.white : const Color(0xFF436B1E),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              title,
+              style: TextStyle(
+                color: isSelected ? Colors.white : const Color(0xFF223528),
+                fontSize: 12,
+                fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
-    final total = cows.length;
-    final healthy = cows.where((c) => c.status == 'Healthy').length;
-    final monitor = total - healthy;
-
     return Container(
-      color: cream,
-      child: SafeArea(
-        bottom: false,
-        child: Center(
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 1200),
-            child: ListView(
-              padding: const EdgeInsets.fromLTRB(24, 20, 24, 40),
+      color: const Color(0xFFF7F8F4),
+      child: Column(
+        children: [
+          // Header Area
+          Container(
+            width: double.infinity,
+            color: const Color(0xFF679C28),
+            padding: const EdgeInsets.fromLTRB(18, 14, 18, 14),
+            child: Row(
               children: [
-                // BoviCare branding and notification
-                Row(
-                  children: [
-                    Container(
-                      width: 48,
-                      height: 48,
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF176B45),
-                        borderRadius: BorderRadius.circular(16),
-                      ),
-                      child: const Icon(
-                        Icons.spa_rounded,
-                        color: Colors.white,
-                        size: 28,
+                // Avatar RP
+                Container(
+                  width: 44,
+                  height: 44,
+                  decoration: const BoxDecoration(
+                    color: Color(0xFFEBF5D5),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Center(
+                    child: Text(
+                      'RP',
+                      style: TextStyle(
+                        color: Color(0xFF3E6319),
+                        fontSize: 16,
+                        fontWeight: FontWeight.w800,
                       ),
                     ),
-                    const SizedBox(width: 11),
-                    const Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                // Title and location
+                const Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Row(
                         children: [
-                          Text(
-                            'BoviCare',
-                            style: TextStyle(
-                              color: Color(0xFF176B45),
-                              fontSize: 22,
-                              fontWeight: FontWeight.w800,
-                              letterSpacing: -0.5,
-                            ),
+                          Icon(
+                            Icons.location_on_outlined,
+                            size: 14,
+                            color: Color(0xFFE4F0CD),
                           ),
-                          SizedBox(height: 2),
+                          SizedBox(width: 4),
                           Text(
-                            'YOUR FARM, HEALTHIER',
+                            'Your farm',
                             style: TextStyle(
-                              color: Color(0xFF77857A),
-                              fontSize: 9,
-                              fontWeight: FontWeight.w600,
-                              letterSpacing: 1.4,
+                              color: Color(0xFFE4F0CD),
+                              fontSize: 12,
+                              fontWeight: FontWeight.w500,
                             ),
                           ),
                         ],
                       ),
-                    ),
-                    Container(
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(15),
-                        border: Border.all(color: const Color(0xFFE7EAE1)),
-                      ),
-                      child: IconButton(
-                        onPressed: () {},
-                        icon: const Icon(
-                          Icons.notifications_none_rounded,
-                          color: Color(0xFF20352A),
+                      SizedBox(height: 2),
+                      Text(
+                        'Patil Dairy, Nashik',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 16,
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: -0.2,
                         ),
                       ),
-                    ),
-                  ],
-                ),
-
-                const SizedBox(height: 23),
-
-                // Farmer greeting
-                const Text(
-                  'Good morning, Farmer 👋',
-                  style: TextStyle(
-                    color: Color(0xFF20352A),
-                    fontSize: 24,
-                    fontWeight: FontWeight.w800,
-                    letterSpacing: -0.7,
+                    ],
                   ),
                 ),
-                const SizedBox(height: 6),
-                const Text(
-                  "Every cow matters. Let's check in on your herd.",
-                  style: TextStyle(
-                    color: Color(0xFF77857A),
-                    fontSize: 13,
-                    height: 1.4,
+                // Trailing notification bell
+                IconButton(
+                  onPressed: () {
+                    showMessage(context, 'No new notifications for Patil Dairy.');
+                  },
+                  icon: const Icon(
+                    Icons.notifications_none_rounded,
+                    color: Colors.white,
+                    size: 24,
                   ),
                 ),
+              ],
+            ),
+          ),
 
-                const SizedBox(height: 20),
-
-                // HERO BANNER
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(22),
-                  child: SizedBox(
-                    height: 205,
-                    width: double.infinity,
-                    child: Stack(
-                      fit: StackFit.expand,
-                      children: [
-                        // 1. Full-width cow photograph
-                        Image.asset(
-                          'asset/images/cow_assessment_banner.jpeg',
-                          fit: BoxFit.contain,
-                          alignment: const Alignment(0.55, 0.35),
-                          errorBuilder: (context, error, stackTrace) {
-                            return const Icon(
-                              Icons.pets_rounded,
-                              color: Color(0xFF176B45),
-                            );
-                          },
+          // Scrollable Body
+          Expanded(
+            child: ListView(
+              padding: const EdgeInsets.only(bottom: 24),
+              children: [
+                // TODAY Hero Banner Card
+                Container(
+                  margin: const EdgeInsets.fromLTRB(16, 16, 16, 16),
+                  padding: const EdgeInsets.fromLTRB(20, 18, 16, 18),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF679C28),
+                    borderRadius: BorderRadius.circular(22),
+                  ),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text(
+                              'TODAY',
+                              style: TextStyle(
+                                color: Color(0xFFE2F0CB),
+                                fontSize: 11,
+                                fontWeight: FontWeight.w800,
+                                letterSpacing: 1.2,
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            const Text(
+                              'Quick herd\nhealth check',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 22,
+                                fontWeight: FontWeight.w800,
+                                height: 1.15,
+                              ),
+                            ),
+                            const SizedBox(height: 14),
+                            FilledButton(
+                              onPressed: widget.onAssess,
+                              style: FilledButton.styleFrom(
+                                backgroundColor: Colors.white,
+                                foregroundColor: const Color(0xFF395C16),
+                                elevation: 0,
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 18,
+                                  vertical: 10,
+                                ),
+                                minimumSize: Size.zero,
+                                shape: const StadiumBorder(),
+                                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                              ),
+                              child: const Text(
+                                'Assess now',
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
+                      ),
+                      const SizedBox(width: 8),
+                      // Outlined translucent frame graphic
+                      Container(
+                        width: 72,
+                        height: 82,
+                        decoration: BoxDecoration(
+                          border: Border.all(
+                            color: Colors.white.withValues(alpha: 0.38),
+                            width: 1.8,
+                          ),
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                        child: Icon(
+                          Icons.document_scanner_outlined,
+                          size: 38,
+                          color: Colors.white.withValues(alpha: 0.45),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
 
-                        // 2. Dark green overlay behind the text
-                        const DecoratedBox(
-                          decoration: BoxDecoration(
-                            gradient: LinearGradient(
-                              begin: Alignment.centerLeft,
-                              end: Alignment.centerRight,
-                              colors: [
-                                Color(0xFF07583C),
-                                Color(0xF207583C),
-                                Color(0xB807583C),
-                                Color(0x0007583C),
-                              ],
-                              stops: [0.0, 0.40, 0.62, 1.0],
+                // Quick actions section
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Quick actions',
+                        style: TextStyle(
+                          color: Color(0xFF1E2E24),
+                          fontSize: 16,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      SizedBox(
+                        height: 72,
+                        child: ListView(
+                          scrollDirection: Axis.horizontal,
+                          physics: const BouncingScrollPhysics(),
+                          children: [
+                            _quickActionItem('All', Icons.grid_view_rounded),
+                            const SizedBox(width: 10),
+                            _quickActionItem(
+                              'Fever',
+                              Icons.device_thermostat_outlined,
+                            ),
+                            const SizedBox(width: 10),
+                            _quickActionItem('Feed', Icons.grass_outlined),
+                            const SizedBox(width: 10),
+                            _quickActionItem('Milk', Icons.water_drop_outlined),
+                            const SizedBox(width: 10),
+                            _quickActionItem('Vaccine', Icons.vaccines_outlined),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+
+                // Check again section
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 20, 16, 0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          const Text(
+                            'Check again',
+                            style: TextStyle(
+                              color: Color(0xFF1E2E24),
+                              fontSize: 16,
+                              fontWeight: FontWeight.w700,
                             ),
                           ),
+                          InkWell(
+                            onTap: widget.onRecords,
+                            borderRadius: BorderRadius.circular(6),
+                            child: const Padding(
+                              padding: EdgeInsets.symmetric(
+                                horizontal: 4,
+                                vertical: 2,
+                              ),
+                              child: Text(
+                                'See all',
+                                style: TextStyle(
+                                  color: Color(0xFF5E8E25),
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 10),
+                      Container(
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(color: const Color(0xFFE8ECE4)),
                         ),
-
-                        // 3. Banner text and button
-                        Padding(
-                          padding: const EdgeInsets.fromLTRB(17, 14, 12, 14),
-                          child: Align(
-                            alignment: Alignment.centerLeft,
-                            child: SizedBox(
-                              width: 245,
+                        padding: const EdgeInsets.all(12),
+                        child: Row(
+                          children: [
+                            Container(
+                              width: 48,
+                              height: 48,
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFE2EECF),
+                                borderRadius: BorderRadius.circular(16),
+                              ),
+                              child: const Icon(
+                                Icons.pets_rounded,
+                                color: Color(0xFF5B8A23),
+                                size: 24,
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            const Expanded(
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
-                                mainAxisAlignment: MainAxisAlignment.center,
                                 children: [
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 10,
-                                      vertical: 6,
-                                    ),
-                                    decoration: BoxDecoration(
-                                      color: const Color(0xFF29996A),
-                                      borderRadius: BorderRadius.circular(30),
-                                    ),
-                                    child: const Row(
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        Icon(
-                                          Icons.eco_rounded,
-                                          size: 13,
-                                          color: Colors.white,
-                                        ),
-                                        SizedBox(width: 5),
-                                        Text(
-                                          'HERD HEALTH',
-                                          style: TextStyle(
-                                            color: Colors.white,
-                                            fontSize: 10,
-                                            fontWeight: FontWeight.w800,
-                                            letterSpacing: 0.6,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                  const SizedBox(height: 12),
-                                  const Text(
-                                    'Healthy cows,\nbetter tomorrow.',
+                                  Text(
+                                    'Lakshmi',
                                     style: TextStyle(
-                                      color: Colors.white,
-                                      fontSize: 23,
-                                      height: 1.08,
-                                      fontWeight: FontWeight.w800,
+                                      color: Color(0xFF1E2E24),
+                                      fontSize: 15,
+                                      fontWeight: FontWeight.w700,
                                     ),
                                   ),
-                                  const SizedBox(height: 7),
-                                  const Text(
-                                    'Spot changes early. Record\nobservations. Care better.',
+                                  SizedBox(height: 3),
+                                  Text(
+                                    'Yesterday · Healthy',
                                     style: TextStyle(
-                                      color: Color(0xFFE1EEE5),
-                                      fontSize: 11,
-                                      height: 1.35,
+                                      color: Color(0xFF758579),
+                                      fontSize: 12,
                                     ),
                                   ),
-                                  const SizedBox(height: 12),
-                                  SizedBox(
-                                    height: 35,
-                                    child: FilledButton(
-                                      onPressed: onAssess,
-                                      style: FilledButton.styleFrom(
-                                        backgroundColor: Colors.white,
-                                        foregroundColor: const Color(
-                                          0xFF07583C,
-                                        ),
-                                        elevation: 0,
-                                        padding: const EdgeInsets.symmetric(
-                                          horizontal: 15,
-                                        ),
-                                        shape: RoundedRectangleBorder(
-                                          borderRadius: BorderRadius.circular(
-                                            12,
-                                          ),
+                                ],
+                              ),
+                            ),
+                            Container(
+                              width: 36,
+                              height: 36,
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFE8F2DC),
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: const Icon(
+                                Icons.chevron_right_rounded,
+                                color: Color(0xFF4B7720),
+                                size: 22,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+
+                // Alerts for you section
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 20, 16, 0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          const Text(
+                            'Alerts for you',
+                            style: TextStyle(
+                              color: Color(0xFF1E2E24),
+                              fontSize: 16,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                          InkWell(
+                            onTap: widget.onRecords,
+                            borderRadius: BorderRadius.circular(6),
+                            child: const Padding(
+                              padding: EdgeInsets.symmetric(
+                                horizontal: 4,
+                                vertical: 2,
+                              ),
+                              child: Text(
+                                'See all',
+                                style: TextStyle(
+                                  color: Color(0xFF5E8E25),
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 10),
+                      Row(
+                        children: [
+                          // Alert 1: NEEDS ATTENTION
+                          Expanded(
+                            child: Container(
+                              height: 130,
+                              padding: const EdgeInsets.all(14),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFF345618),
+                                borderRadius: BorderRadius.circular(20),
+                              ),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceBetween,
+                                children: [
+                                  const Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        'NEEDS ATTENTION',
+                                        style: TextStyle(
+                                          color: Color(0xFFA6D76A),
+                                          fontSize: 10.5,
+                                          fontWeight: FontWeight.w800,
+                                          letterSpacing: 0.6,
                                         ),
                                       ),
-                                      child: const Row(
-                                        mainAxisSize: MainAxisSize.min,
-                                        children: [
-                                          Text(
-                                            'Start check',
-                                            style: TextStyle(
-                                              fontSize: 12,
-                                              fontWeight: FontWeight.w700,
-                                            ),
-                                          ),
-                                          SizedBox(width: 8),
-                                          Icon(
-                                            Icons.arrow_forward_rounded,
-                                            size: 15,
-                                          ),
-                                        ],
+                                      SizedBox(height: 4),
+                                      Text(
+                                        '3 cows',
+                                        style: TextStyle(
+                                          color: Colors.white,
+                                          fontSize: 22,
+                                          fontWeight: FontWeight.w800,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  InkWell(
+                                    onTap: widget.onCows,
+                                    borderRadius: BorderRadius.circular(16),
+                                    child: Container(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 14,
+                                        vertical: 6,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color: const Color(0xFF466E24),
+                                        borderRadius: BorderRadius.circular(16),
+                                      ),
+                                      child: const Text(
+                                        'Review',
+                                        style: TextStyle(
+                                          color: Colors.white,
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.w600,
+                                        ),
                                       ),
                                     ),
                                   ),
@@ -402,498 +871,606 @@ class DashboardScreen extends StatelessWidget {
                               ),
                             ),
                           ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-
-                const SizedBox(height: 23),
-
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Explore heading
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        const Text(
-                          'Explore',
-                          style: TextStyle(
-                            fontSize: 17,
-                            fontWeight: FontWeight.w800,
-                            color: Color(0xFF20352A),
-                          ),
-                        ),
-                        InkWell(
-                          onTap: onCows,
-                          borderRadius: BorderRadius.circular(8),
-                          child: const Padding(
-                            padding: EdgeInsets.symmetric(
-                              horizontal: 4,
-                              vertical: 6,
-                            ),
-                            child: Row(
-                              children: [
-                                Text(
-                                  'See all',
-                                  style: TextStyle(
-                                    color: Color(0xFF176B45),
-                                    fontSize: 11,
-                                    fontWeight: FontWeight.w600,
+                          const SizedBox(width: 10),
+                          // Alert 2: VACCINE DUE
+                          Expanded(
+                            child: Container(
+                              height: 130,
+                              padding: const EdgeInsets.all(14),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFF78A12B),
+                                borderRadius: BorderRadius.circular(20),
+                              ),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceBetween,
+                                children: [
+                                  const Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        'VACCINE DUE',
+                                        style: TextStyle(
+                                          color: Color(0xFFD6EEA5),
+                                          fontSize: 10.5,
+                                          fontWeight: FontWeight.w800,
+                                          letterSpacing: 0.6,
+                                        ),
+                                      ),
+                                      SizedBox(height: 4),
+                                      Text(
+                                        'FMD, 6',
+                                        style: TextStyle(
+                                          color: Colors.white,
+                                          fontSize: 22,
+                                          fontWeight: FontWeight.w800,
+                                        ),
+                                      ),
+                                    ],
                                   ),
-                                ),
-                                SizedBox(width: 3),
-                                Icon(
-                                  Icons.arrow_forward_rounded,
-                                  size: 13,
-                                  color: Color(0xFF176B45),
-                                ),
-                              ],
+                                  InkWell(
+                                    onTap: () {
+                                      showMessage(
+                                        context,
+                                        'FMD Vaccination scheduled for next Tuesday.',
+                                      );
+                                    },
+                                    borderRadius: BorderRadius.circular(16),
+                                    child: Container(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 14,
+                                        vertical: 6,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color: const Color(0xFF8CB438),
+                                        borderRadius: BorderRadius.circular(16),
+                                      ),
+                                      child: const Text(
+                                        'Schedule',
+                                        style: TextStyle(
+                                          color: Colors.white,
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
                             ),
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 10),
-                    // Horizontal category tiles
-                    SizedBox(
-                      height: 78,
-                      child: ListView(
-                        scrollDirection: Axis.horizontal,
-                        physics: const BouncingScrollPhysics(),
-                        children: [
-                          _exploreTile(
-                            icon: Icons.pets_rounded,
-                            label: 'My Cows',
-                            background: const Color(0xFFE5F0DF),
-                            onTap: onCows,
-                          ),
-                          _exploreTile(
-                            icon: Icons.health_and_safety_rounded,
-                            label: 'Symptoms',
-                            background: const Color(0xFFFFF0CC),
-                            onTap: onAssess,
-                          ),
-                          _exploreTile(
-                            icon: Icons.water_drop_rounded,
-                            label: 'Udder Health',
-                            background: const Color(0xFFE5F0DF),
-                            onTap: onAssess,
-                          ),
-                          _exploreTile(
-                            icon: Icons.history_rounded,
-                            label: 'Records',
-                            background: const Color(0xFFFFF0CC),
-                            onTap: onRecords,
-                          ),
-                          _exploreTile(
-                            icon: Icons.notifications_active_outlined,
-                            label: 'Reminders',
-                            background: const Color(0xFFE5F0DF),
-                            onTap: onRecords,
                           ),
                         ],
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
 
-                const SizedBox(height: 15),
-
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Heading and View all
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        const Flexible(
-                          child: Text(
-                            'Your herd at a glance',
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
+                // Your cows section
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 20, 16, 10),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          const Text(
+                            'Your cows',
                             style: TextStyle(
-                              color: Color(0xFF20352A),
-                              fontSize: 15,
-                              fontWeight: FontWeight.w800,
+                              color: Color(0xFF1E2E24),
+                              fontSize: 16,
+                              fontWeight: FontWeight.w700,
                             ),
                           ),
-                        ),
-                        TextButton(
-                          onPressed: onCows,
-                          style: TextButton.styleFrom(
-                            padding: const EdgeInsets.only(left: 8),
-                            minimumSize: const Size(0, 32),
-                            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                          ),
-                          child: const Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Text(
-                                'View all',
+                          InkWell(
+                            onTap: widget.onCows,
+                            borderRadius: BorderRadius.circular(6),
+                            child: const Padding(
+                              padding: EdgeInsets.symmetric(
+                                horizontal: 4,
+                                vertical: 2,
+                              ),
+                              child: Text(
+                                'See all',
                                 style: TextStyle(
-                                  color: Color(0xFF176B45),
-                                  fontSize: 10,
+                                  color: Color(0xFF5E8E25),
+                                  fontSize: 12,
                                   fontWeight: FontWeight.w600,
                                 ),
                               ),
-                              SizedBox(width: 3),
-                              Icon(
-                                Icons.arrow_forward_rounded,
-                                size: 12,
-                                color: Color(0xFF176B45),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-
-                    const SizedBox(height: 5),
-
-                    // Three compact statistic cards
-                    Row(
-                      children: [
-                        Expanded(
-                          child: _herdStatCard(
-                            icon: Icons.pets_rounded,
-                            value: '$total',
-                            label: 'Total cows',
-                            iconBackground: const Color(0xFFDFF0E2),
-                            iconColor: const Color(0xFF176B45),
-                            decorationColor: const Color(0xFFDFF2E2),
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: _herdStatCard(
-                            icon: Icons.check_circle_rounded,
-                            value: '$healthy',
-                            label: 'Healthy',
-                            iconBackground: const Color(0xFFDFF0E2),
-                            iconColor: const Color(0xFF176B45),
-                            decorationColor: const Color(0xFFDFF2E2),
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: _herdStatCard(
-                            icon: Icons.visibility_rounded,
-                            value: '$monitor',
-                            label: 'To monitor',
-                            iconBackground: const Color(0xFFFFEFC6),
-                            iconColor: const Color(0xFFAE7414),
-                            decorationColor: const Color(0xFFFFF1CE),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-
-                const SizedBox(height: 23),
-
-                // RECENTLY CHECKED COWS
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      tr('Your cows', 'तुमच्या गायी'),
-                      style: const TextStyle(
-                        color: ink,
-                        fontSize: 18,
-                        fontWeight: FontWeight.w800,
-                      ),
-                    ),
-                    TextButton(
-                      onPressed: onCows,
-                      child: Text(
-                        tr('See all →', 'सर्व पहा →'),
-                        style: const TextStyle(color: forest),
-                      ),
-                    ),
-                  ],
-                ),
-                if (cows.isEmpty)
-                  _emptyCows()
-                else
-                  ...cows
-                      .take(3)
-                      .map(
-                        (cow) => Container(
-                          margin: const EdgeInsets.only(bottom: 9),
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            borderRadius: BorderRadius.circular(17),
-                            border: Border.all(color: const Color(0xFFE7EAE1)),
-                          ),
-                          child: ListTile(
-                            onTap: onCows,
-                            leading: Container(
-                              width: 44,
-                              height: 44,
-                              decoration: const BoxDecoration(
-                                color: Color(0xFFDDEFE2),
-                                shape: BoxShape.circle,
-                              ),
-                              child: const Icon(
-                                Icons.pets_rounded,
-                                color: forest,
-                              ),
                             ),
-                            title: Text(
-                              cow.name,
-                              style: const TextStyle(
-                                color: ink,
-                                fontWeight: FontWeight.w700,
-                              ),
-                            ),
-                            subtitle: Text(
-                              '${cow.id} · ${cow.status}',
-                              style: const TextStyle(
-                                color: muted,
-                                fontSize: 12,
-                              ),
-                            ),
-                            trailing: const Icon(Icons.chevron_right_rounded),
-                          ),
-                        ),
-                      ),
-
-                const SizedBox(height: 13),
-
-                // RECENT ACTIVITY
-                Material(
-                  color: const Color(0xFFE7F3E5),
-                  borderRadius: BorderRadius.circular(13),
-                  child: InkWell(
-                    onTap: onRecords,
-                    borderRadius: BorderRadius.circular(13),
-                    child: Container(
-                      height: 62,
-                      padding: const EdgeInsets.symmetric(horizontal: 13),
-                      child: Row(
-                        children: [
-                          // Calendar icon
-                          Container(
-                            width: 37,
-                            height: 37,
-                            decoration: BoxDecoration(
-                              color: const Color(0xFFD9EED9),
-                              borderRadius: BorderRadius.circular(9),
-                            ),
-                            child: const Icon(
-                              Icons.calendar_month_outlined,
-                              color: Color(0xFF176B45),
-                              size: 27,
-                            ),
-                          ),
-                          const SizedBox(width: 11),
-
-                          // Activity title and subtitle
-                          Expanded(
-                            child: Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                const Text(
-                                  'Recent health activity',
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: TextStyle(
-                                    color: Color(0xFF20352A),
-                                    fontSize: 11,
-                                    fontWeight: FontWeight.w800,
-                                  ),
-                                ),
-                                const SizedBox(height: 3),
-                                Text(
-                                  records.isEmpty
-                                      ? 'No assessments saved yet'
-                                      : '${records.length} saved assessments',
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: const TextStyle(
-                                    color: Color(0xFF77857A),
-                                    fontSize: 9,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-
-                          // Right arrow
-                          const Icon(
-                            Icons.chevron_right_rounded,
-                            color: Color(0xFF176B45),
-                            size: 22,
                           ),
                         ],
                       ),
-                    ),
+                      const SizedBox(height: 10),
+                      Row(
+                        children: [
+                          // Cow 1: Ganga
+                          Expanded(
+                            child: InkWell(
+                              onTap: widget.onCows,
+                              borderRadius: BorderRadius.circular(22),
+                              child: Container(
+                                padding:
+                                    const EdgeInsets.fromLTRB(14, 16, 14, 14),
+                                decoration: BoxDecoration(
+                                  color: Colors.white,
+                                  borderRadius: BorderRadius.circular(22),
+                                  border: Border.all(
+                                    color: const Color(0xFFE5EAE1),
+                                  ),
+                                ),
+                                child: Column(
+                                  children: [
+                                    Container(
+                                      width: 62,
+                                      height: 62,
+                                      decoration: const BoxDecoration(
+                                        color: Color(0xFFD8E7C8),
+                                        shape: BoxShape.circle,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 10),
+                                    const Text(
+                                      'Ganga',
+                                      style: TextStyle(
+                                        color: Color(0xFF1E2E24),
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.w700,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 2),
+                                    const Text(
+                                      'Holstein',
+                                      style: TextStyle(
+                                        color: Color(0xFF758579),
+                                        fontSize: 12,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 14),
+                                    const Row(
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.spaceBetween,
+                                      children: [
+                                        Row(
+                                          children: [
+                                            Icon(
+                                              Icons.verified_user_outlined,
+                                              size: 14,
+                                              color: Color(0xFF4C7820),
+                                            ),
+                                            SizedBox(width: 4),
+                                            Text(
+                                              '95%',
+                                              style: TextStyle(
+                                                color: Color(0xFF4C7820),
+                                                fontSize: 12,
+                                                fontWeight: FontWeight.w700,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                        Icon(
+                                          Icons.chevron_right_rounded,
+                                          size: 18,
+                                          color: Color(0xFF9AA89D),
+                                        ),
+                                      ],
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          // Cow 2: Nandini
+                          Expanded(
+                            child: InkWell(
+                              onTap: widget.onCows,
+                              borderRadius: BorderRadius.circular(22),
+                              child: Container(
+                                padding:
+                                    const EdgeInsets.fromLTRB(14, 16, 14, 14),
+                                decoration: BoxDecoration(
+                                  color: Colors.white,
+                                  borderRadius: BorderRadius.circular(22),
+                                  border: Border.all(
+                                    color: const Color(0xFFE5EAE1),
+                                  ),
+                                ),
+                                child: Column(
+                                  children: [
+                                    Container(
+                                      width: 62,
+                                      height: 62,
+                                      decoration: const BoxDecoration(
+                                        color: Color(0xFFF9E4D1),
+                                        shape: BoxShape.circle,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 10),
+                                    const Text(
+                                      'Nandini',
+                                      style: TextStyle(
+                                        color: Color(0xFF1E2E24),
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.w700,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 2),
+                                    const Text(
+                                      'Jersey',
+                                      style: TextStyle(
+                                        color: Color(0xFF758579),
+                                        fontSize: 12,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 14),
+                                    const Row(
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.spaceBetween,
+                                      children: [
+                                        Row(
+                                          children: [
+                                            Icon(
+                                              Icons.warning_amber_rounded,
+                                              size: 14,
+                                              color: Color(0xFFC7691C),
+                                            ),
+                                            SizedBox(width: 4),
+                                            Text(
+                                              '64%',
+                                              style: TextStyle(
+                                                color: Color(0xFFC7691C),
+                                                fontSize: 12,
+                                                fontWeight: FontWeight.w700,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                        Icon(
+                                          Icons.chevron_right_rounded,
+                                          size: 18,
+                                          color: Color(0xFF9AA89D),
+                                        ),
+                                      ],
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
                   ),
                 ),
               ],
             ),
           ),
-        ),
-      ),
-    );
-  }
-
-  Widget _exploreTile({
-    required IconData icon,
-    required String label,
-    required Color background,
-    required VoidCallback onTap,
-  }) {
-    return Padding(
-      padding: const EdgeInsets.only(right: 13),
-      child: SizedBox(
-        width: 54,
-        child: InkWell(
-          onTap: onTap,
-          borderRadius: BorderRadius.circular(15),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                width: 49,
-                height: 45,
-                decoration: BoxDecoration(
-                  color: background,
-                  borderRadius: BorderRadius.circular(14),
-                ),
-                child: Icon(icon, size: 25, color: const Color(0xFF15583B)),
-              ),
-              const SizedBox(height: 5),
-              SizedBox(
-                width: 68,
-                child: Text(
-                  label,
-                  maxLines: 1,
-                  overflow: TextOverflow.visible,
-                  textAlign: TextAlign.center,
-                  softWrap: false,
-                  style: const TextStyle(
-                    color: Color(0xFF202B24),
-                    fontSize: 9,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _herdStatCard({
-    required IconData icon,
-    required String value,
-    required String label,
-    required Color iconBackground,
-    required Color iconColor,
-    required Color decorationColor,
-  }) {
-    return Container(
-      height: 87,
-      clipBehavior: Clip.antiAlias,
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: const Color(0xFFECEDE5), width: 0.8),
-        boxShadow: [
-          BoxShadow(
-            color: const Color(0xFF20352A).withValues(alpha: 0.035),
-            blurRadius: 5,
-            offset: const Offset(0, 2),
-          ),
         ],
       ),
-      child: Stack(
+    );
+  }
+}
+
+class BoviCareLoginPage extends StatefulWidget {
+  const BoviCareLoginPage({super.key, required this.onLoginSuccess});
+
+  final VoidCallback onLoginSuccess;
+
+  @override
+  State<BoviCareLoginPage> createState() => _BoviCareLoginPageState();
+}
+
+class _BoviCareLoginPageState extends State<BoviCareLoginPage> {
+  final TextEditingController _phoneController =
+      TextEditingController(text: '+91 98765 43210');
+  final TextEditingController _pinController =
+      TextEditingController(text: '1234');
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      color: const Color(0xFFF7F8F4),
+      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          // Soft decorative curved corner
-          Positioned(
-            right: -10,
-            bottom: -19,
+          Center(
             child: Container(
               width: 68,
-              height: 49,
-              decoration: BoxDecoration(
-                color: decorationColor,
-                borderRadius: const BorderRadius.only(
-                  topLeft: Radius.circular(42),
-                ),
+              height: 68,
+              decoration: const BoxDecoration(
+                color: Color(0xFF679C28),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(
+                Icons.pets_rounded,
+                color: Colors.white,
+                size: 36,
               ),
             ),
           ),
+          const SizedBox(height: 16),
+          const Text(
+            'BoviCare',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: 26,
+              fontWeight: FontWeight.w800,
+              color: Color(0xFF1E2E24),
+              letterSpacing: -0.5,
+            ),
+          ),
+          const SizedBox(height: 4),
+          const Text(
+            'Patil Dairy, Nashik',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: 14,
+              color: Color(0xFF5E8E25),
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          const SizedBox(height: 32),
+          TextField(
+            controller: _phoneController,
+            decoration: InputDecoration(
+              labelText: 'Phone Number',
+              prefixIcon: const Icon(Icons.phone_outlined, color: Color(0xFF5E8E25)),
+              filled: true,
+              fillColor: Colors.white,
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(16),
+                borderSide: const BorderSide(color: Color(0xFFE5EAE1)),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(16),
+                borderSide: const BorderSide(color: Color(0xFFE5EAE1)),
+              ),
+            ),
+          ),
+          const SizedBox(height: 14),
+          TextField(
+            controller: _pinController,
+            obscureText: true,
+            decoration: InputDecoration(
+              labelText: 'Security PIN',
+              prefixIcon: const Icon(Icons.lock_outline_rounded, color: Color(0xFF5E8E25)),
+              filled: true,
+              fillColor: Colors.white,
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(16),
+                borderSide: const BorderSide(color: Color(0xFFE5EAE1)),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(16),
+                borderSide: const BorderSide(color: Color(0xFFE5EAE1)),
+              ),
+            ),
+          ),
+          const SizedBox(height: 24),
+          FilledButton(
+            onPressed: widget.onLoginSuccess,
+            style: FilledButton.styleFrom(
+              backgroundColor: const Color(0xFF679C28),
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(vertical: 14),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+              ),
+            ),
+            child: const Text(
+              'Sign In to Farm',
+              style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
+            ),
+          ),
+          const SizedBox(height: 12),
+          TextButton(
+            onPressed: widget.onLoginSuccess,
+            child: const Text(
+              'Continue as Guest Demo →',
+              style: TextStyle(color: Color(0xFF5E8E25), fontWeight: FontWeight.w600),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
 
-          // Card content
-          Padding(
-            padding: const EdgeInsets.fromLTRB(9, 7, 5, 5),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+class BoviCareProfilePage extends StatelessWidget {
+  const BoviCareProfilePage({
+    super.key,
+    required this.onBack,
+    required this.onLogout,
+  });
+
+  final VoidCallback onBack;
+  final VoidCallback onLogout;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      color: const Color(0xFFF7F8F4),
+      child: Column(
+        children: [
+          Container(
+            color: const Color(0xFF679C28),
+            padding: const EdgeInsets.fromLTRB(18, 14, 18, 14),
+            child: Row(
               children: [
-                Container(
-                  width: 32,
-                  height: 32,
-                  decoration: BoxDecoration(
-                    color: iconBackground,
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: Icon(icon, size: 19, color: iconColor),
+                IconButton(
+                  onPressed: onBack,
+                  icon: const Icon(Icons.arrow_back_rounded, color: Colors.white),
                 ),
-                const SizedBox(height: 3),
-                Text(
-                  value,
-                  style: const TextStyle(
-                    color: Color(0xFF173D2D),
-                    fontSize: 20,
-                    height: 1.05,
-                    fontWeight: FontWeight.w800,
+                const SizedBox(width: 8),
+                const Text(
+                  'Farm Profile',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 18,
+                    fontWeight: FontWeight.w700,
                   ),
                 ),
-                const SizedBox(height: 2),
-                Expanded(
-                  child: Align(
-                    alignment: Alignment.topLeft,
-                    child: Text(
-                      label,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        color: Color(0xFF77857A),
-                        fontSize: 9,
-                        height: 1.1,
+              ],
+            ),
+          ),
+          Expanded(
+            child: ListView(
+              padding: const EdgeInsets.all(18),
+              children: [
+                Center(
+                  child: Container(
+                    width: 72,
+                    height: 72,
+                    decoration: const BoxDecoration(
+                      color: Color(0xFFEBF5D5),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Center(
+                      child: Text(
+                        'RP',
+                        style: TextStyle(
+                          color: Color(0xFF3E6319),
+                          fontSize: 26,
+                          fontWeight: FontWeight.w800,
+                        ),
                       ),
                     ),
                   ),
                 ),
+                const SizedBox(height: 12),
+                const Text(
+                  'Patil Dairy, Nashik',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.w800,
+                    color: Color(0xFF1E2E24),
+                  ),
+                ),
+                const SizedBox(height: 4),
+                const Text(
+                  'Owner: Ramesh Patil · Nashik, Maharashtra',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Color(0xFF758579),
+                  ),
+                ),
+                const SizedBox(height: 24),
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(18),
+                    border: Border.all(color: const Color(0xFFE8ECE4)),
+                  ),
+                  child: const Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceAround,
+                    children: [
+                      Column(
+                        children: [
+                          Text(
+                            '14',
+                            style: TextStyle(
+                              fontSize: 20,
+                              fontWeight: FontWeight.w800,
+                              color: Color(0xFF1E2E24),
+                            ),
+                          ),
+                          SizedBox(height: 2),
+                          Text(
+                            'Total Cattle',
+                            style: TextStyle(fontSize: 11, color: Color(0xFF758579)),
+                          ),
+                        ],
+                      ),
+                      Column(
+                        children: [
+                          Text(
+                            '180 L',
+                            style: TextStyle(
+                              fontSize: 20,
+                              fontWeight: FontWeight.w800,
+                              color: Color(0xFF4C7820),
+                            ),
+                          ),
+                          SizedBox(height: 2),
+                          Text(
+                            'Daily Milk',
+                            style: TextStyle(fontSize: 11, color: Color(0xFF758579)),
+                          ),
+                        ],
+                      ),
+                      Column(
+                        children: [
+                          Text(
+                            '3',
+                            style: TextStyle(
+                              fontSize: 20,
+                              fontWeight: FontWeight.w800,
+                              color: Color(0xFFC7691C),
+                            ),
+                          ),
+                          SizedBox(height: 2),
+                          Text(
+                            'Need Review',
+                            style: TextStyle(fontSize: 11, color: Color(0xFF758579)),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 20),
+                ListTile(
+                  tileColor: Colors.white,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16),
+                    side: const BorderSide(color: Color(0xFFE8ECE4)),
+                  ),
+                  leading: const Icon(Icons.language_rounded, color: Color(0xFF5E8E25)),
+                  title: const Text('Language: English / मराठी'),
+                  trailing: const Icon(Icons.chevron_right_rounded),
+                  onTap: () {
+                    showMessage(context, 'Language switcher available in settings.');
+                  },
+                ),
+                const SizedBox(height: 12),
+                ListTile(
+                  tileColor: Colors.white,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16),
+                    side: const BorderSide(color: Color(0xFFE8ECE4)),
+                  ),
+                  leading: const Icon(Icons.notifications_active_outlined, color: Color(0xFF5E8E25)),
+                  title: const Text('SMS & WhatsApp Alerts'),
+                  trailing: const Icon(Icons.chevron_right_rounded),
+                  onTap: () {
+                    showMessage(context, 'Alert preferences saved.');
+                  },
+                ),
+                const SizedBox(height: 24),
+                OutlinedButton.icon(
+                  onPressed: onLogout,
+                  icon: const Icon(Icons.logout_rounded, color: Colors.redAccent),
+                  label: const Text('Log Out', style: TextStyle(color: Colors.redAccent)),
+                  style: OutlinedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    side: const BorderSide(color: Colors.redAccent),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                  ),
+                ),
               ],
             ),
           ),
         ],
-      ),
-    );
-  }
-
-  Widget _emptyCows() {
-    return Container(
-      padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(18),
-      ),
-      child: Text(
-        tr(
-          'No cows registered yet. Add your first cow in My Cows.',
-          'अजून गाय नोंदवलेली नाही. माझ्या गायी विभागात गाय जोडा.',
-        ),
-        style: const TextStyle(color: muted),
       ),
     );
   }
