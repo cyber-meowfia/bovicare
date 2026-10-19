@@ -1267,31 +1267,35 @@ class HealthRecordsPage extends StatelessWidget {
   final List<HealthRecord> records;
   final VoidCallback onBack;
 
-  static const cream = Color(0xFFF8F7F0);
-  static const forest = Color(0xFF176B45);
-  static const ink = Color(0xFF20352A);
-  static const muted = Color(0xFF77857A);
+  static const _cream = Color(0xFFF8F7F0);
+  static const _forest = Color(0xFF176B45);
+  static const _ink = Color(0xFF20352A);
+  static const _muted = Color(0xFF77857A);
+  static const _paleGreen = Color(0xFFE5F2E4);
+  static const _cardBg = Color(0xFFFFFEFA);
+  static const _border = Color(0xFFE7EAE1);
+  static const _amber = Color(0xFFAD7412);
 
   @override
   Widget build(BuildContext context) {
+    final totalRecords = records.length;
     final followUps = records
         .where((r) => r.result.toLowerCase().contains('follow-up'))
         .length;
 
     return Container(
-      color: cream,
+      color: _cream,
       child: SafeArea(
         bottom: false,
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Header
+            // ── A. Header ──
             Padding(
-              padding: const EdgeInsets.fromLTRB(16, 8, 16, 18),
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 6),
               child: Row(
                 children: [
                   Material(
-                    color: const Color(0xFFE5F2E4),
+                    color: _paleGreen,
                     borderRadius: BorderRadius.circular(14),
                     child: InkWell(
                       onTap: onBack,
@@ -1301,7 +1305,7 @@ class HealthRecordsPage extends StatelessWidget {
                         height: 46,
                         child: Icon(
                           Icons.arrow_back_rounded,
-                          color: forest,
+                          color: _forest,
                           size: 23,
                         ),
                       ),
@@ -1315,7 +1319,7 @@ class HealthRecordsPage extends StatelessWidget {
                         Text(
                           'Health Records',
                           style: TextStyle(
-                            color: ink,
+                            color: _ink,
                             fontSize: 21,
                             fontWeight: FontWeight.w800,
                             letterSpacing: -0.5,
@@ -1323,8 +1327,8 @@ class HealthRecordsPage extends StatelessWidget {
                         ),
                         SizedBox(height: 3),
                         Text(
-                          "Track your herd's health history",
-                          style: TextStyle(color: muted, fontSize: 12),
+                          "Review your herd's health history",
+                          style: TextStyle(color: _muted, fontSize: 12),
                         ),
                       ],
                     ),
@@ -1333,65 +1337,144 @@ class HealthRecordsPage extends StatelessWidget {
               ),
             ),
 
+            // ── Scrollable body ──
             Expanded(
               child: ListView(
-                padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
+                padding: const EdgeInsets.fromLTRB(16, 12, 16, 32),
                 children: [
-                  // Overview heading
-                  const Text(
-                    'Health overview',
-                    style: TextStyle(
-                      color: ink,
-                      fontSize: 17,
-                      fontWeight: FontWeight.w800,
+                  // ── B. Assessment summary card ──
+                  Container(
+                    decoration: BoxDecoration(
+                      color: _cardBg,
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(color: _border),
+                      boxShadow: [
+                        BoxShadow(
+                          color: _ink.withValues(alpha: 0.04),
+                          blurRadius: 10,
+                          offset: const Offset(0, 3),
+                        ),
+                      ],
+                    ),
+                    child: Column(
+                      children: [
+                        // Top row: icon + title/subtitle
+                        Padding(
+                          padding: const EdgeInsets.fromLTRB(16, 18, 16, 14),
+                          child: Row(
+                            children: [
+                              Container(
+                                width: 46,
+                                height: 46,
+                                decoration: BoxDecoration(
+                                  color: _paleGreen,
+                                  borderRadius: BorderRadius.circular(14),
+                                ),
+                                child: const Icon(
+                                  Icons.assignment_rounded,
+                                  color: _forest,
+                                  size: 24,
+                                ),
+                              ),
+                              const SizedBox(width: 14),
+                              const Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      'Assessment summary',
+                                      style: TextStyle(
+                                        color: _ink,
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.w800,
+                                        letterSpacing: -0.3,
+                                      ),
+                                    ),
+                                    SizedBox(height: 3),
+                                    Text(
+                                      'Saved assessments and observations',
+                                      style: TextStyle(
+                                        color: _muted,
+                                        fontSize: 12,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+
+                        // Thin divider
+                        const Divider(
+                          height: 1,
+                          thickness: 0.8,
+                          color: _border,
+                        ),
+
+                        // Stat tiles row
+                        Padding(
+                          padding: const EdgeInsets.all(14),
+                          child: Row(
+                            children: [
+                              Expanded(
+                                child: _summaryStatTile(
+                                  value: '$totalRecords',
+                                  label: 'Total records',
+                                  valueColor: _forest,
+                                  bgColor: const Color(0xFFE8F5E9),
+                                ),
+                              ),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: _summaryStatTile(
+                                  value: '$followUps',
+                                  label: 'Need follow-up',
+                                  valueColor: _amber,
+                                  bgColor: const Color(0xFFFFF8E1),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
                     ),
                   ),
-                  const SizedBox(height: 10),
 
-                  // Summary cards
-                  Row(
-                    children: [
-                      Expanded(
-                        child: _recordStat(
-                          icon: Icons.description_rounded,
-                          value: '${records.length}',
-                          label: 'Total records',
-                          iconBg: const Color(0xFFDFF0E2),
-                          iconColor: forest,
-                          curveColor: const Color(0xFFDFF2E2),
-                        ),
-                      ),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: _recordStat(
-                          icon: Icons.visibility_rounded,
-                          value: '$followUps',
-                          label: 'Follow-up needed',
-                          iconBg: const Color(0xFFFFEFC7),
-                          iconColor: const Color(0xFFAD7412),
-                          curveColor: const Color(0xFFFFF1CE),
-                        ),
-                      ),
-                    ],
-                  ),
+                  const SizedBox(height: 24),
 
-                  const SizedBox(height: 25),
-
-                  // Record list heading
+                  // ── C. Recent assessments heading ──
                   const Text(
-                    'Recent records',
+                    'Recent assessments',
                     style: TextStyle(
-                      color: ink,
-                      fontSize: 18,
+                      color: _ink,
+                      fontSize: 17,
                       fontWeight: FontWeight.w800,
                     ),
                   ),
                   const SizedBox(height: 12),
 
+                  // Recent assessments card
                   if (records.isEmpty)
-                    _emptyRecords()
+                    _emptyState()
                   else
-                    ...records.reversed.map((record) => _recordCard(record)),
+                    ...records.reversed.map(_recordCard),
+
+                  const SizedBox(height: 18),
+
+                  // ── D. Footer note ──
+                  const Center(
+                    child: Text(
+                      'Illustrative layout · Counts will come from saved assessment records.',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        color: _muted,
+                        fontSize: 11,
+                        fontStyle: FontStyle.italic,
+                        height: 1.4,
+                      ),
+                    ),
+                  ),
                 ],
               ),
             ),
@@ -1401,77 +1484,40 @@ class HealthRecordsPage extends StatelessWidget {
     );
   }
 
-  Widget _recordStat({
-    required IconData icon,
+  /// Pale stat tile used inside the summary card.
+  Widget _summaryStatTile({
     required String value,
     required String label,
-    required Color iconBg,
-    required Color iconColor,
-    required Color curveColor,
+    required Color valueColor,
+    required Color bgColor,
   }) {
     return Container(
-      height: 104,
-      clipBehavior: Clip.antiAlias,
+      padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 14),
       decoration: BoxDecoration(
-        color: const Color(0xFFFFFEFA),
-        borderRadius: BorderRadius.circular(15),
-        border: Border.all(color: const Color(0xFFE7EAE1)),
-        boxShadow: [
-          BoxShadow(
-            color: ink.withValues(alpha: 0.035),
-            blurRadius: 6,
-            offset: const Offset(0, 2),
-          ),
-        ],
+        color: bgColor,
+        borderRadius: BorderRadius.circular(14),
       ),
-      child: Stack(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Positioned(
-            right: -5,
-            bottom: -18,
-            child: Container(
-              width: 75,
-              height: 55,
-              decoration: BoxDecoration(
-                color: curveColor,
-                borderRadius: const BorderRadius.only(
-                  topLeft: Radius.circular(55),
-                ),
-              ),
+          Text(
+            value,
+            style: TextStyle(
+              color: valueColor,
+              fontSize: 26,
+              fontWeight: FontWeight.w800,
+              height: 1,
             ),
           ),
-          Padding(
-            padding: const EdgeInsets.all(10),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Container(
-                  width: 34,
-                  height: 34,
-                  decoration: BoxDecoration(
-                    color: iconBg,
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: Icon(icon, color: iconColor, size: 20),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  value,
-                  style: const TextStyle(
-                    color: ink,
-                    fontSize: 22,
-                    height: 1,
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  label,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(color: muted, fontSize: 10),
-                ),
-              ],
+          const SizedBox(height: 5),
+          Text(
+            label,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(
+              color: _muted,
+              fontSize: 11,
+              fontWeight: FontWeight.w500,
             ),
           ),
         ],
@@ -1479,14 +1525,22 @@ class HealthRecordsPage extends StatelessWidget {
     );
   }
 
-  Widget _emptyRecords() {
+  /// Empty state shown when no records exist.
+  Widget _emptyState() {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.fromLTRB(22, 30, 22, 30),
+      padding: const EdgeInsets.symmetric(vertical: 44, horizontal: 24),
       decoration: BoxDecoration(
-        color: const Color(0xFFFFFEFA),
+        color: _cardBg,
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: const Color(0xFFE7EAE1)),
+        border: Border.all(color: _border),
+        boxShadow: [
+          BoxShadow(
+            color: _ink.withValues(alpha: 0.03),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
       ),
       child: Column(
         children: [
@@ -1494,39 +1548,47 @@ class HealthRecordsPage extends StatelessWidget {
             width: 72,
             height: 72,
             decoration: BoxDecoration(
-              color: const Color(0xFFE5F2E4),
+              color: _paleGreen,
               borderRadius: BorderRadius.circular(23),
               boxShadow: [
                 BoxShadow(
-                  color: forest.withValues(alpha: 0.07),
+                  color: _forest.withValues(alpha: 0.07),
                   blurRadius: 14,
                   spreadRadius: 2,
                 ),
               ],
             ),
-            child: const Icon(Icons.history_rounded, color: forest, size: 36),
+            child: const Icon(
+              Icons.description_outlined,
+              color: _forest,
+              size: 34,
+            ),
           ),
-          const SizedBox(height: 17),
+          const SizedBox(height: 20),
           const Text(
             'No records yet',
             style: TextStyle(
-              color: ink,
+              color: _ink,
               fontSize: 18,
               fontWeight: FontWeight.w800,
             ),
           ),
-          const SizedBox(height: 7),
+          const SizedBox(height: 8),
           const Text(
-            'Your completed cow assessments will appear here '
-            'with their dates and screening results.',
+            'Your saved cow assessments will appear here.',
             textAlign: TextAlign.center,
-            style: TextStyle(color: muted, fontSize: 12, height: 1.5),
+            style: TextStyle(
+              color: _muted,
+              fontSize: 13,
+              height: 1.5,
+            ),
           ),
         ],
       ),
     );
   }
 
+  /// Individual record card for the list.
   Widget _recordCard(HealthRecord record) {
     final needsFollowUp = record.result.toLowerCase().contains('follow-up');
 
@@ -1539,9 +1601,9 @@ class HealthRecordsPage extends StatelessWidget {
       margin: const EdgeInsets.only(bottom: 10),
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: const Color(0xFFFFFEFA),
+        color: _cardBg,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFE7EAE1)),
+        border: Border.all(color: _border),
       ),
       child: Row(
         children: [
@@ -1556,7 +1618,7 @@ class HealthRecordsPage extends StatelessWidget {
             ),
             child: Icon(
               Icons.assignment_outlined,
-              color: needsFollowUp ? const Color(0xFFAD7412) : forest,
+              color: needsFollowUp ? _amber : _forest,
             ),
           ),
           const SizedBox(width: 12),
@@ -1567,7 +1629,7 @@ class HealthRecordsPage extends StatelessWidget {
                 Text(
                   record.cowName,
                   style: const TextStyle(
-                    color: ink,
+                    color: _ink,
                     fontSize: 14,
                     fontWeight: FontWeight.w800,
                   ),
@@ -1575,7 +1637,7 @@ class HealthRecordsPage extends StatelessWidget {
                 const SizedBox(height: 3),
                 Text(
                   '${record.cowId}  •  $dateText',
-                  style: const TextStyle(color: muted, fontSize: 11),
+                  style: const TextStyle(color: _muted, fontSize: 11),
                 ),
                 const SizedBox(height: 7),
                 Container(
@@ -1592,7 +1654,8 @@ class HealthRecordsPage extends StatelessWidget {
                   child: Text(
                     record.result,
                     style: TextStyle(
-                      color: needsFollowUp ? const Color(0xFF98620B) : forest,
+                      color:
+                          needsFollowUp ? const Color(0xFF98620B) : _forest,
                       fontSize: 10,
                       fontWeight: FontWeight.w700,
                     ),
@@ -1602,13 +1665,13 @@ class HealthRecordsPage extends StatelessWidget {
                   const SizedBox(height: 7),
                   Text(
                     record.notes,
-                    style: const TextStyle(color: muted, fontSize: 12),
+                    style: const TextStyle(color: _muted, fontSize: 12),
                   ),
                 ],
               ],
             ),
           ),
-          const Icon(Icons.chevron_right_rounded, color: forest, size: 23),
+          const Icon(Icons.chevron_right_rounded, color: _forest, size: 23),
         ],
       ),
     );
