@@ -35,6 +35,9 @@ class Cow {
     required this.status,
     this.breed = 'Gir',
     this.healthScore = 95,
+    this.age = '4 yrs',
+    this.milkYield = '18 L',
+    this.lastCheck = 'Today',
   });
 
   final String name;
@@ -42,6 +45,9 @@ class Cow {
   final String status;
   final String breed;
   final int healthScore;
+  final String age;
+  final String milkYield;
+  final String lastCheck;
 }
 
 class HealthRecord {
@@ -78,21 +84,30 @@ class _HomeScreenState extends State<HomeScreen> {
       id: 'COW-001',
       status: 'Healthy',
       breed: 'Holstein',
+      age: '4 yrs',
       healthScore: 95,
+      milkYield: '18 L',
+      lastCheck: 'Today',
+    ),
+    const Cow(
+      name: 'Lakshmi',
+      id: 'COW-003',
+      status: 'Healthy',
+      breed: 'Gir',
+      age: '5 yrs',
+      healthScore: 92,
+      milkYield: '12 L',
+      lastCheck: 'Yesterday',
     ),
     const Cow(
       name: 'Nandini',
       id: 'COW-002',
       status: 'Attention',
       breed: 'Jersey',
+      age: '3 yrs',
       healthScore: 64,
-    ),
-    const Cow(
-      name: 'Lakshmi',
-      id: 'COW-003',
-      status: 'Healthy',
-      breed: 'Sahiwal',
-      healthScore: 92,
+      milkYield: '9 L',
+      lastCheck: '2 days ago',
     ),
   ];
 
@@ -134,7 +149,16 @@ class _HomeScreenState extends State<HomeScreen> {
           onCows: () => _selectTab(1),
           onRecords: () => _selectTab(3),
         ),
-        MyCowsPage(cows: cows, onBack: () => _selectTab(0)),
+        MyCowsPage(
+          cows: cows,
+          onBack: () => _selectTab(0),
+          onAssessCow: (cow) => _selectTab(2),
+          onAddCow: (newCow) {
+            setState(() {
+              cows.add(newCow);
+            });
+          },
+        ),
         AssessPage(onBack: () => _selectTab(0)),
         HealthRecordsPage(records: records, onBack: () => _selectTab(0)),
         BoviCareProfilePage(
@@ -2234,102 +2258,1011 @@ class AssessPage extends StatelessWidget {
   }
 }
 
-class MyCowsPage extends StatelessWidget {
-  const MyCowsPage({super.key, required this.cows, required this.onBack});
+class MyCowsPage extends StatefulWidget {
+  const MyCowsPage({
+    super.key,
+    required this.cows,
+    required this.onBack,
+    this.onAssessCow,
+    this.onAddCow,
+  });
 
   final List<Cow> cows;
   final VoidCallback onBack;
+  final ValueChanged<Cow>? onAssessCow;
+  final ValueChanged<Cow>? onAddCow;
+
+  @override
+  State<MyCowsPage> createState() => _MyCowsPageState();
+}
+
+class _MyCowsPageState extends State<MyCowsPage> {
+  final TextEditingController _searchController = TextEditingController();
+  String _selectedFilter = 'All'; // 'All', 'Healthy', 'Attention'
+  String _sortBy = 'Name'; // 'Name', 'Health', 'Yield'
+  late List<Cow> _localCows;
+
+  @override
+  void initState() {
+    super.initState();
+    _localCows = List.from(widget.cows);
+  }
+
+  @override
+  void didUpdateWidget(covariant MyCowsPage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.cows != widget.cows) {
+      _localCows = List.from(widget.cows);
+    }
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  void _toggleSort() {
+    setState(() {
+      if (_sortBy == 'Name') {
+        _sortBy = 'Health';
+      } else if (_sortBy == 'Health') {
+        _sortBy = 'Yield';
+      } else {
+        _sortBy = 'Name';
+      }
+    });
+  }
+
+  List<Cow> get _filteredAndSortedCows {
+    final query = _searchController.text.trim().toLowerCase();
+    var list = _localCows.where((c) {
+      if (_selectedFilter == 'Healthy' && c.status != 'Healthy') return false;
+      if (_selectedFilter == 'Attention' && c.status != 'Attention') return false;
+      if (query.isNotEmpty) {
+        final matchesName = c.name.toLowerCase().contains(query);
+        final matchesId = c.id.toLowerCase().contains(query);
+        final matchesBreed = c.breed.toLowerCase().contains(query);
+        return matchesName || matchesId || matchesBreed;
+      }
+      return true;
+    }).toList();
+
+    if (_sortBy == 'Name') {
+      list.sort((a, b) => a.name.compareTo(b.name));
+    } else if (_sortBy == 'Health') {
+      list.sort((a, b) => b.healthScore.compareTo(a.healthScore));
+    } else if (_sortBy == 'Yield') {
+      int parseYield(String y) => int.tryParse(y.replaceAll(RegExp(r'[^0-9]'), '')) ?? 0;
+      list.sort((a, b) => parseYield(b.milkYield).compareTo(parseYield(a.milkYield)));
+    }
+
+    return list;
+  }
+
+  void _openAddCowDialog(BuildContext context) {
+    final nameCtrl = TextEditingController();
+    final idCtrl = TextEditingController(text: 'COW-00${_localCows.length + 1}');
+    final breedCtrl = TextEditingController(text: 'Gir');
+    final ageCtrl = TextEditingController(text: '4 yrs');
+    final yieldCtrl = TextEditingController(text: '16 L');
+    String status = 'Healthy';
+
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) {
+        return StatefulBuilder(
+          builder: (ctx, setModalState) {
+            return Container(
+              padding: EdgeInsets.only(
+                left: 20,
+                right: 20,
+                top: 20,
+                bottom: MediaQuery.of(ctx).viewInsets.bottom + 20,
+              ),
+              decoration: const BoxDecoration(
+                color: Color(0xFFF7F8F4),
+                borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+              ),
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Center(
+                      child: Container(
+                        width: 44,
+                        height: 4,
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFD3DBCF),
+                          borderRadius: BorderRadius.circular(2),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    const Text(
+                      'Add New Cow',
+                      style: TextStyle(
+                        fontFamily: 'serif',
+                        fontSize: 22,
+                        fontWeight: FontWeight.w700,
+                        color: Color(0xFF1B2E21),
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    const Text(
+                      'Enter cow credentials and health details to join the herd.',
+                      style: TextStyle(fontSize: 13, color: Color(0xFF6B7B6D)),
+                    ),
+                    const SizedBox(height: 18),
+                    _buildModalInput('Cow Name', nameCtrl, hint: 'e.g. Shanti'),
+                    const SizedBox(height: 12),
+                    _buildModalInput('Tag ID', idCtrl, hint: 'e.g. COW-004'),
+                    const SizedBox(height: 12),
+                    Row(
+                      children: [
+                        Expanded(child: _buildModalInput('Breed', breedCtrl, hint: 'Gir / Holstein')),
+                        const SizedBox(width: 10),
+                        Expanded(child: _buildModalInput('Age', ageCtrl, hint: '3 yrs')),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    _buildModalInput('Daily Yield', yieldCtrl, hint: '14 L'),
+                    const SizedBox(height: 14),
+                    const Text(
+                      'Health Status',
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                        color: Color(0xFF2A3D2F),
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: ChoiceChip(
+                            label: const Center(child: Text('Healthy')),
+                            selected: status == 'Healthy',
+                            selectedColor: const Color(0xFFE2EFE3),
+                            onSelected: (val) {
+                              if (val) setModalState(() => status = 'Healthy');
+                            },
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: ChoiceChip(
+                            label: const Center(child: Text('Attention')),
+                            selected: status == 'Attention',
+                            selectedColor: const Color(0xFFFDF0D5),
+                            onSelected: (val) {
+                              if (val) setModalState(() => status = 'Attention');
+                            },
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 22),
+                    SizedBox(
+                      width: double.infinity,
+                      height: 48,
+                      child: FilledButton(
+                        onPressed: () {
+                          final name = nameCtrl.text.trim();
+                          if (name.isEmpty) return;
+                          final newCow = Cow(
+                            name: name,
+                            id: idCtrl.text.trim().isEmpty ? 'COW-00${_localCows.length + 1}' : idCtrl.text.trim(),
+                            status: status,
+                            breed: breedCtrl.text.trim().isEmpty ? 'Gir' : breedCtrl.text.trim(),
+                            age: ageCtrl.text.trim().isEmpty ? '4 yrs' : ageCtrl.text.trim(),
+                            milkYield: yieldCtrl.text.trim().isEmpty ? '15 L' : yieldCtrl.text.trim(),
+                            healthScore: status == 'Healthy' ? 94 : 68,
+                            lastCheck: 'Today',
+                          );
+                          setState(() {
+                            _localCows.add(newCow);
+                          });
+                          widget.onAddCow?.call(newCow);
+                          Navigator.pop(ctx);
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text('Added ${newCow.name} to your herd'),
+                              backgroundColor: const Color(0xFF1B3929),
+                            ),
+                          );
+                        },
+                        style: FilledButton.styleFrom(
+                          backgroundColor: const Color(0xFF1B3929),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                        ),
+                        child: const Text('Save Cow', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15)),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Widget _buildModalInput(String label, TextEditingController ctrl, {required String hint}) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600, color: Color(0xFF2A3D2F)),
+        ),
+        const SizedBox(height: 5),
+        Container(
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: const Color(0xFFE2E7DE)),
+          ),
+          padding: const EdgeInsets.symmetric(horizontal: 12),
+          child: TextField(
+            controller: ctrl,
+            style: const TextStyle(fontSize: 14, color: Color(0xFF1B2E21)),
+            decoration: InputDecoration(
+              hintText: hint,
+              hintStyle: const TextStyle(color: Color(0xFF9AA79C), fontSize: 13),
+              border: InputBorder.none,
+              isDense: true,
+              contentPadding: const EdgeInsets.symmetric(vertical: 12),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
-    final total = cows.length;
-    final healthy = cows.where((cow) => cow.status == 'Healthy').length;
+    final total = _localCows.length;
+    final healthy = _localCows.where((cow) => cow.status == 'Healthy').length;
     final monitor = total - healthy;
+    final cowsList = _filteredAndSortedCows;
 
-    return Column(
-      children: [
-        MyCowsHeader(onBack: onBack, onAddCow: () {}),
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
+    return Container(
+      color: const Color(0xFFF7F8F4),
+      child: Column(
+        children: [
+          // Top Header (Icon + My Cows + Add cow button)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(18, 14, 18, 12),
+            child: Row(
+              children: [
+                // Cow squircle icon
+                Container(
+                  width: 44,
+                  height: 44,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFDFECD9),
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  child: const Icon(
+                    Icons.pets_rounded,
+                    color: Color(0xFF1B3929),
+                    size: 22,
+                  ),
+                ),
+                const SizedBox(width: 14),
+                // Title & Subtitle
+                const Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        'My Cows',
+                        style: TextStyle(
+                          fontSize: 22,
+                          fontWeight: FontWeight.w700,
+                          color: Color(0xFF1B2E21),
+                          letterSpacing: -0.3,
+                          fontFamily: 'serif',
+                        ),
+                      ),
+                      SizedBox(height: 2),
+                      Text(
+                        'Manage your herd',
+                        style: TextStyle(
+                          fontSize: 12.5,
+                          fontWeight: FontWeight.w400,
+                          color: Color(0xFF6B7B6D),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                // + Add cow outline button
+                InkWell(
+                  onTap: () => _openAddCowDialog(context),
+                  borderRadius: BorderRadius.circular(12),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: Colors.transparent,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: const Color(0xFFD4E0CB), width: 1.2),
+                    ),
+                    child: const Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.add_rounded, size: 16, color: Color(0xFF1B3929)),
+                        SizedBox(width: 4),
+                        Text(
+                          'Add cow',
+                          style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                            color: Color(0xFF1B3929),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          // Scrollable Body
+          Expanded(
+            child: ListView(
+              padding: const EdgeInsets.fromLTRB(18, 0, 18, 20),
+              children: [
+                // HERD SUMMARY Card
+                Container(
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFE2EBD5),
+                    borderRadius: BorderRadius.circular(22),
+                  ),
+                  clipBehavior: Clip.antiAlias,
+                  child: Stack(
+                    children: [
+                      // Subtle decorative concentric ripples on top right
+                      Positioned(
+                        right: -12,
+                        top: -16,
+                        child: Container(
+                          width: 86,
+                          height: 86,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: const Color(0xFF38634B).withValues(alpha: 0.07),
+                          ),
+                        ),
+                      ),
+                      Positioned(
+                        right: 18,
+                        top: 14,
+                        child: Container(
+                          width: 60,
+                          height: 60,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: const Color(0xFF38634B).withValues(alpha: 0.05),
+                          ),
+                        ),
+                      ),
+
+                      // Card Content
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            // Header: HERD SUMMARY and Updated today
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                const Text(
+                                  'HERD SUMMARY',
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w700,
+                                    letterSpacing: 1.5,
+                                    color: Color(0xFF5A705E),
+                                  ),
+                                ),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                  decoration: BoxDecoration(
+                                    color: Colors.black.withValues(alpha: 0.04),
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                  child: const Text(
+                                    'Updated today',
+                                    style: TextStyle(
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w500,
+                                      color: Color(0xFF4C6351),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 12),
+
+                            // Segmented Bar (Healthy vs To monitor)
+                            ClipRRect(
+                              borderRadius: BorderRadius.circular(4),
+                              child: SizedBox(
+                                height: 7,
+                                child: Row(
+                                  children: [
+                                    if (healthy > 0)
+                                      Expanded(
+                                        flex: healthy,
+                                        child: Container(color: const Color(0xFF557B45)),
+                                      ),
+                                    if (monitor > 0)
+                                      Expanded(
+                                        flex: monitor,
+                                        child: Container(color: const Color(0xFFC49332)),
+                                      ),
+                                    if (total == 0)
+                                      Expanded(
+                                        child: Container(color: const Color(0xFFCBD6C2)),
+                                      ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: 14),
+
+                            // Stats row
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Row(
+                                  crossAxisAlignment: CrossAxisAlignment.baseline,
+                                  textBaseline: TextBaseline.alphabetic,
+                                  children: [
+                                    Text(
+                                      '$total',
+                                      style: const TextStyle(
+                                        fontSize: 21,
+                                        fontWeight: FontWeight.w700,
+                                        color: Color(0xFF182A1C),
+                                      ),
+                                    ),
+                                    const SizedBox(width: 5),
+                                    const Text(
+                                      'Total',
+                                      style: TextStyle(
+                                        fontSize: 13,
+                                        color: Color(0xFF586B5A),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                Row(
+                                  crossAxisAlignment: CrossAxisAlignment.center,
+                                  children: [
+                                    Text(
+                                      '$healthy',
+                                      style: const TextStyle(
+                                        fontSize: 21,
+                                        fontWeight: FontWeight.w700,
+                                        color: Color(0xFF182A1C),
+                                      ),
+                                    ),
+                                    const SizedBox(width: 6),
+                                    Container(
+                                      width: 7,
+                                      height: 7,
+                                      decoration: const BoxDecoration(
+                                        color: Color(0xFF557B45),
+                                        shape: BoxShape.circle,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 4),
+                                    const Text(
+                                      'Healthy',
+                                      style: TextStyle(
+                                        fontSize: 13,
+                                        color: Color(0xFF586B5A),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                Row(
+                                  crossAxisAlignment: CrossAxisAlignment.center,
+                                  children: [
+                                    Text(
+                                      '$monitor',
+                                      style: const TextStyle(
+                                        fontSize: 21,
+                                        fontWeight: FontWeight.w700,
+                                        color: Color(0xFF182A1C),
+                                      ),
+                                    ),
+                                    const SizedBox(width: 6),
+                                    Container(
+                                      width: 7,
+                                      height: 7,
+                                      decoration: const BoxDecoration(
+                                        color: Color(0xFFC49332),
+                                        shape: BoxShape.circle,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 4),
+                                    const Text(
+                                      'To monitor',
+                                      style: TextStyle(
+                                        fontSize: 13,
+                                        color: Color(0xFF586B5A),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 14),
+
+                // Search & Filter Bar (Clean white background, NO black box per user instruction)
+                Row(
+                  children: [
+                    Expanded(
+                      child: Container(
+                        height: 48,
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(color: const Color(0xFFE2E7DE), width: 1.2),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withValues(alpha: 0.02),
+                              blurRadius: 4,
+                              offset: const Offset(0, 2),
+                            ),
+                          ],
+                        ),
+                        padding: const EdgeInsets.symmetric(horizontal: 14),
+                        child: Row(
+                          children: [
+                            const Icon(
+                              Icons.search_rounded,
+                              color: Color(0xFF758578),
+                              size: 21,
+                            ),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: TextField(
+                                controller: _searchController,
+                                onChanged: (val) => setState(() {}),
+                                style: const TextStyle(
+                                  fontSize: 14,
+                                  color: Color(0xFF1B2E21),
+                                  fontWeight: FontWeight.w500,
+                                ),
+                                decoration: const InputDecoration(
+                                  hintText: 'Search name or tag',
+                                  hintStyle: TextStyle(
+                                    color: Color(0xFF8B9B8E),
+                                    fontSize: 13.5,
+                                    fontWeight: FontWeight.w400,
+                                  ),
+                                  border: InputBorder.none,
+                                  isDense: true,
+                                  contentPadding: EdgeInsets.zero,
+                                ),
+                              ),
+                            ),
+                            if (_searchController.text.isNotEmpty)
+                              GestureDetector(
+                                onTap: () {
+                                  _searchController.clear();
+                                  setState(() {});
+                                },
+                                child: const Icon(
+                                  Icons.close_rounded,
+                                  color: Color(0xFF8B9B8E),
+                                  size: 18,
+                                ),
+                              ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    InkWell(
+                      onTap: _toggleSort,
+                      borderRadius: BorderRadius.circular(16),
+                      child: Container(
+                        width: 48,
+                        height: 48,
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(color: const Color(0xFFE2E7DE), width: 1.2),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withValues(alpha: 0.02),
+                              blurRadius: 4,
+                              offset: const Offset(0, 2),
+                            ),
+                          ],
+                        ),
+                        child: const Icon(
+                          Icons.tune_rounded,
+                          color: Color(0xFF1B3929),
+                          size: 20,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+
+                // Filter Chips Row (All, Healthy, Attention)
+                Row(
+                  children: [
+                    _buildFilterChip('All', total),
+                    const SizedBox(width: 8),
+                    _buildFilterChip('Healthy', healthy),
+                    const SizedBox(width: 8),
+                    _buildFilterChip('Attention', monitor),
+                  ],
+                ),
+                const SizedBox(height: 14),
+
+                // Showing cows count & Sort subheader
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      'Showing ${cowsList.length} cows',
+                      style: const TextStyle(
+                        color: Color(0xFF5E6F61),
+                        fontSize: 13,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                    InkWell(
+                      onTap: _toggleSort,
+                      borderRadius: BorderRadius.circular(8),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(
+                              Icons.swap_vert_rounded,
+                              size: 16,
+                              color: Color(0xFF1B3929),
+                            ),
+                            const SizedBox(width: 3),
+                            Text(
+                              'Sort: $_sortBy',
+                              style: const TextStyle(
+                                color: Color(0xFF1B3929),
+                                fontSize: 13,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 10),
+
+                // Cow Cards List
+                if (cowsList.isEmpty)
+                  Container(
+                    margin: const EdgeInsets.only(top: 24),
+                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 32),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(color: const Color(0xFFE5E9E0)),
+                    ),
+                    child: Column(
+                      children: [
+                        const Icon(
+                          Icons.search_off_rounded,
+                          size: 44,
+                          color: Color(0xFF8FA192),
+                        ),
+                        const SizedBox(height: 12),
+                        const Text(
+                          'No cows found',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w700,
+                            color: Color(0xFF1B2E21),
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        const Text(
+                          'Try adjusting your search query or filter tags.',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(fontSize: 13, color: Color(0xFF6B7B6D)),
+                        ),
+                        const SizedBox(height: 14),
+                        OutlinedButton(
+                          onPressed: () {
+                            _searchController.clear();
+                            setState(() => _selectedFilter = 'All');
+                          },
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: const Color(0xFF1B3929),
+                            side: const BorderSide(color: Color(0xFFD4E0CB)),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          ),
+                          child: const Text('Reset filters'),
+                        ),
+                      ],
+                    ),
+                  )
+                else
+                  ...cowsList.map((cow) => _buildCowCard(cow)),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildFilterChip(String label, int count) {
+    final isSelected = _selectedFilter == label;
+
+    return Expanded(
+      child: GestureDetector(
+        onTap: () => setState(() => _selectedFilter = label),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 180),
+          padding: const EdgeInsets.symmetric(vertical: 8),
+          decoration: BoxDecoration(
+            color: isSelected ? const Color(0xFF20352A) : const Color(0xFFF0F3EC),
+            borderRadius: BorderRadius.circular(14),
+          ),
           child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              HerdStatCard(
-                icon: Icons.pets_rounded,
-                value: '$total',
-                label: 'Total cows',
-                iconBackground: const Color(0xFFDDF0E0),
-                iconColor: const Color(0xFF176B45),
-                curveColor: const Color(0xFFE4F4E5),
+              Text(
+                label,
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                  color: isSelected ? Colors.white : const Color(0xFF2D3E31),
+                ),
               ),
-              const SizedBox(width: 8),
-              HerdStatCard(
-                icon: Icons.check_circle_rounded,
-                value: '$healthy',
-                label: 'Healthy',
-                iconBackground: const Color(0xFFDDF0E0),
-                iconColor: const Color(0xFF176B45),
-                curveColor: const Color(0xFFE4F4E5),
-              ),
-              const SizedBox(width: 8),
-              HerdStatCard(
-                icon: Icons.visibility_rounded,
-                value: '$monitor',
-                label: 'To monitor',
-                iconBackground: const Color(0xFFFFEFC7),
-                iconColor: const Color(0xFFAD7412),
-                curveColor: const Color(0xFFFFF1CE),
+              const SizedBox(width: 6),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                decoration: BoxDecoration(
+                  color: isSelected ? const Color(0xFF2F4D3A) : const Color(0xFFDFE5DC),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Text(
+                  '$count',
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                    color: isSelected ? Colors.white : const Color(0xFF55685A),
+                  ),
+                ),
               ),
             ],
           ),
         ),
-        const SizedBox(height: 16),
-        Expanded(
-          child: cows.isEmpty
-              ? const SimpleScreen(
-                  icon: Icons.pets_rounded,
-                  title: 'My Cows',
-                  subtitle: 'Your registered cows will appear here.',
-                )
-              : ListView.builder(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 8,
-                  ),
-                  itemCount: cows.length,
-                  itemBuilder: (context, index) {
-                    final cow = cows[index];
+      ),
+    );
+  }
 
-                    return Card(
-                      color: Colors.white,
-                      elevation: 0,
-                      margin: const EdgeInsets.only(bottom: 10),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(16),
-                        side: const BorderSide(color: Color(0xFFE7EAE1)),
-                      ),
-                      child: ListTile(
-                        leading: const CircleAvatar(
-                          backgroundColor: Color(0xFFDDEFE2),
-                          child: Icon(
-                            Icons.pets_rounded,
-                            color: Color(0xFF176B45),
-                          ),
-                        ),
-                        title: Text(
-                          cow.name,
-                          style: const TextStyle(
-                            fontWeight: FontWeight.w700,
-                            color: Color(0xFF20352A),
-                          ),
-                        ),
-                        subtitle: Text('${cow.id} • ${cow.status}'),
-                        trailing: const Icon(Icons.chevron_right_rounded),
-                      ),
-                    );
-                  },
+  Widget _buildCowCard(Cow cow) {
+    final isHealthy = cow.status == 'Healthy';
+    final initials = cow.name.length >= 2 ? cow.name.substring(0, 2).toUpperCase() : cow.name.toUpperCase();
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: const Color(0xFFE5E9E0), width: 1.2),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.015),
+            blurRadius: 6,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Top Row: Avatar, Name & Breed, Status Badge
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              // Avatar
+              Container(
+                width: 46,
+                height: 46,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: isHealthy ? const Color(0xFFDFEBD7) : const Color(0xFFFCE9C8),
                 ),
-        ),
-      ],
+                alignment: Alignment.center,
+                child: Text(
+                  initials,
+                  style: TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w700,
+                    color: isHealthy ? const Color(0xFF265034) : const Color(0xFF9E6E16),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 12),
+              // Name and breed/age
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      cow.name,
+                      style: const TextStyle(
+                        fontSize: 17,
+                        fontWeight: FontWeight.w700,
+                        color: Color(0xFF1B2E21),
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      '${cow.id} · ${cow.breed} · ${cow.age}',
+                      style: const TextStyle(
+                        fontSize: 12.5,
+                        color: Color(0xFF6B7C6E),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              // Status Badge
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                decoration: BoxDecoration(
+                  color: isHealthy ? const Color(0xFFE2EFE3) : const Color(0xFFFDF0D5),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Text(
+                  cow.status,
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: isHealthy ? const Color(0xFF2A6836) : const Color(0xFFA67313),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+
+          // Health score progress bar
+          ClipRRect(
+            borderRadius: BorderRadius.circular(3),
+            child: Container(
+              height: 6,
+              width: double.infinity,
+              color: const Color(0xFFECECE3),
+              child: FractionallySizedBox(
+                alignment: Alignment.centerLeft,
+                widthFactor: (cow.healthScore / 100.0).clamp(0.0, 1.0),
+                child: Container(
+                  color: isHealthy ? const Color(0xFF4C6E3B) : const Color(0xFFC7922E),
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(height: 12),
+
+          // Bottom metrics & assess action row
+          Row(
+            children: [
+              // Health %
+              const Icon(
+                Icons.shield_outlined,
+                size: 15,
+                color: Color(0xFF607263),
+              ),
+              const SizedBox(width: 4),
+              Text(
+                '${cow.healthScore}%',
+                style: const TextStyle(
+                  fontSize: 12.5,
+                  fontWeight: FontWeight.w600,
+                  color: Color(0xFF435447),
+                ),
+              ),
+              const SizedBox(width: 16),
+              // Milk yield
+              const Icon(
+                Icons.water_drop_outlined,
+                size: 15,
+                color: Color(0xFF607263),
+              ),
+              const SizedBox(width: 4),
+              Text(
+                cow.milkYield,
+                style: const TextStyle(
+                  fontSize: 12.5,
+                  fontWeight: FontWeight.w600,
+                  color: Color(0xFF435447),
+                ),
+              ),
+              const SizedBox(width: 16),
+              // Last checked
+              const Icon(
+                Icons.calendar_today_outlined,
+                size: 14,
+                color: Color(0xFF607263),
+              ),
+              const SizedBox(width: 4),
+              Text(
+                cow.lastCheck,
+                style: const TextStyle(
+                  fontSize: 12.5,
+                  fontWeight: FontWeight.w500,
+                  color: Color(0xFF506254),
+                ),
+              ),
+              const Spacer(),
+              // Assess CTA
+              InkWell(
+                onTap: () {
+                  if (widget.onAssessCow != null) {
+                    widget.onAssessCow!(cow);
+                  }
+                },
+                borderRadius: BorderRadius.circular(8),
+                child: const Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        'Assess',
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                          color: Color(0xFF556F5A),
+                        ),
+                      ),
+                      SizedBox(width: 3),
+                      Icon(
+                        Icons.arrow_forward_ios_rounded,
+                        size: 11,
+                        color: Color(0xFF556F5A),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
     );
   }
 }
@@ -2759,204 +3692,7 @@ void showMessage(BuildContext context, String message) {
   ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
 }
 
-class MyCowsHeader extends StatelessWidget {
-  final VoidCallback onBack;
-  final VoidCallback onAddCow;
 
-  const MyCowsHeader({super.key, required this.onBack, required this.onAddCow});
-
-  static const Color green = Color(0xFF087448);
-  static const Color paleGreen = Color(0xFFE5F2E4);
-  static const Color darkText = Color(0xFF172E27);
-  static const Color subtitleColor = Color(0xFF758078);
-  static const Color cream = Color(0xFFF8F7F0);
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      color: cream,
-      padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
-      child: Row(
-        children: [
-          // Back button
-          SizedBox(
-            width: 44,
-            height: 46,
-            child: Material(
-              color: paleGreen,
-              borderRadius: BorderRadius.circular(14),
-              child: InkWell(
-                onTap: onBack,
-                borderRadius: BorderRadius.circular(14),
-                child: const Icon(
-                  Icons.arrow_back_rounded,
-                  color: green,
-                  size: 23,
-                ),
-              ),
-            ),
-          ),
-          const SizedBox(width: 14),
-          // Title and subtitle
-          const Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  'My Cows',
-                  maxLines: 1,
-                  style: TextStyle(
-                    color: darkText,
-                    fontSize: 18,
-                    fontWeight: FontWeight.w800,
-                    height: 1.2,
-                  ),
-                ),
-                SizedBox(height: 3),
-                Text(
-                  'Manage your herd',
-                  maxLines: 1,
-                  style: TextStyle(
-                    color: subtitleColor,
-                    fontSize: 12,
-                    height: 1.2,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(width: 8),
-          // Add Cow button
-          SizedBox(
-            height: 46,
-            child: FilledButton(
-              onPressed: onAddCow,
-              style: FilledButton.styleFrom(
-                backgroundColor: green,
-                foregroundColor: Colors.white,
-                elevation: 0,
-                padding: const EdgeInsets.symmetric(horizontal: 12),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(14),
-                ),
-              ),
-              child: const Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(Icons.add_rounded, size: 21),
-                  SizedBox(width: 5),
-                  Text(
-                    'Add Cow',
-                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class HerdStatCard extends StatelessWidget {
-  final IconData icon;
-  final String value;
-  final String label;
-  final Color iconBackground;
-  final Color iconColor;
-  final Color curveColor;
-
-  const HerdStatCard({
-    super.key,
-    required this.icon,
-    required this.value,
-    required this.label,
-    required this.iconBackground,
-    required this.iconColor,
-    required this.curveColor,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Expanded(
-      child: Container(
-        height: 86,
-        clipBehavior: Clip.antiAlias,
-        decoration: BoxDecoration(
-          color: const Color(0xFFFFFEFA),
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: const Color(0xFFECEDE5), width: 0.8),
-        ),
-        child: Stack(
-          children: [
-            // Soft curved decoration
-            Positioned(
-              right: -4,
-              bottom: -17,
-              child: Container(
-                width: 70,
-                height: 52,
-                decoration: BoxDecoration(
-                  color: curveColor,
-                  borderRadius: const BorderRadius.only(
-                    topLeft: Radius.circular(55),
-                  ),
-                ),
-              ),
-            ),
-
-            // Card information
-            Padding(
-              padding: const EdgeInsets.fromLTRB(8, 6, 5, 4),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Container(
-                    width: 31,
-                    height: 31,
-                    decoration: BoxDecoration(
-                      color: iconBackground,
-                      borderRadius: BorderRadius.circular(9),
-                    ),
-                    child: Icon(icon, color: iconColor, size: 20),
-                  ),
-
-                  const SizedBox(height: 3),
-
-                  Text(
-                    value,
-                    style: const TextStyle(
-                      fontSize: 20,
-                      height: 1.05,
-                      fontWeight: FontWeight.w800,
-                      color: Color(0xFF172E25),
-                    ),
-                  ),
-
-                  const SizedBox(height: 2),
-
-                  Text(
-                    label,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      fontSize: 9,
-                      height: 1.1,
-                      color: Color(0xFF778078),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
 
 class AssessHeader extends StatelessWidget {
   final VoidCallback onBack;
