@@ -159,7 +159,17 @@ class _HomeScreenState extends State<HomeScreen> {
             });
           },
         ),
-        AssessPage(onBack: () => _selectTab(0)),
+        AssessPage(
+          onBack: () => _selectTab(0),
+          cows: cows,
+          records: records,
+          onRecordAdded: (newRecord) {
+            setState(() {
+              records.insert(0, newRecord);
+            });
+          },
+          onViewRecords: () => _selectTab(3),
+        ),
         HealthRecordsPage(records: records, onBack: () => _selectTab(0)),
         BoviCareProfilePage(
           onBack: () => _selectTab(0),
@@ -2136,10 +2146,942 @@ class SimpleScreen extends StatelessWidget {
   }
 }
 
-class AssessPage extends StatelessWidget {
-  const AssessPage({super.key, required this.onBack});
+class AssessPage extends StatefulWidget {
+  const AssessPage({
+    super.key,
+    required this.onBack,
+    this.cows = const [],
+    this.records = const [],
+    this.onRecordAdded,
+    this.onViewRecords,
+  });
 
   final VoidCallback onBack;
+  final List<Cow> cows;
+  final List<HealthRecord> records;
+  final ValueChanged<HealthRecord>? onRecordAdded;
+  final VoidCallback? onViewRecords;
+
+  @override
+  State<AssessPage> createState() => _AssessPageState();
+}
+
+class _AssessPageState extends State<AssessPage> {
+  late List<Cow> _herdCows;
+
+  @override
+  void initState() {
+    super.initState();
+    _herdCows = widget.cows.isNotEmpty
+        ? widget.cows
+        : const [
+            Cow(
+              name: 'Ganga',
+              id: 'COW-001',
+              status: 'Healthy',
+              breed: 'Holstein',
+              age: '4 yrs',
+              healthScore: 95,
+              milkYield: '18 L',
+              lastCheck: 'Today',
+            ),
+            Cow(
+              name: 'Lakshmi',
+              id: 'COW-003',
+              status: 'Healthy',
+              breed: 'Gir',
+              age: '5 yrs',
+              healthScore: 92,
+              milkYield: '12 L',
+              lastCheck: 'Yesterday',
+            ),
+            Cow(
+              name: 'Nandini',
+              id: 'COW-002',
+              status: 'Attention',
+              breed: 'Jersey',
+              age: '3 yrs',
+              healthScore: 64,
+              milkYield: '9 L',
+              lastCheck: '2 days ago',
+            ),
+          ];
+  }
+
+  @override
+  void didUpdateWidget(covariant AssessPage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.cows.isNotEmpty) {
+      _herdCows = widget.cows;
+    }
+  }
+
+  // 1. Guided Clinical Assessment Flow
+  void _startAssessmentWizard([Cow? preselectedCow]) {
+    Cow selectedCow = preselectedCow ?? _herdCows.first;
+    final affectedQuarters = <String>{};
+    String swelling = 'None';
+    String warmth = 'Normal';
+    String milkAppearance = 'Normal creamy';
+    String milkConsistency = 'Clear';
+    String cowBehavior = 'Calm';
+    bool hasFever = false;
+
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) {
+        return StatefulBuilder(
+          builder: (ctx, setSheetState) {
+            // Calculate dynamic score
+            int score = 96;
+            if (swelling == 'Mild') score -= 15;
+            if (swelling == 'Severe') score -= 35;
+            if (warmth == 'Warm') score -= 10;
+            if (warmth == 'Hot') score -= 25;
+            if (milkAppearance == 'Watery') score -= 20;
+            if (milkAppearance == 'Yellowish/Discolored') score -= 25;
+            if (milkAppearance == 'Blood-tinged') score -= 35;
+            if (milkConsistency == 'Flakes') score -= 20;
+            if (milkConsistency == 'Clots') score -= 30;
+            if (cowBehavior == 'Restless / Pain') score -= 15;
+            if (cowBehavior == 'Kicking cluster') score -= 20;
+            if (hasFever) score -= 20;
+            score = score.clamp(20, 98);
+
+            String resultCategory;
+            Color resultColor;
+            String recommendation;
+
+            if (score >= 88) {
+              resultCategory = 'Healthy (Grade 0)';
+              resultColor = const Color(0xFF2E7D32);
+              recommendation = 'Normal udder health. Continue routine pre-dip and post-dip sanitization.';
+            } else if (score >= 65) {
+              resultCategory = 'Subclinical Risk (Grade 1)';
+              resultColor = const Color(0xFFC48E28);
+              recommendation = 'Early inflammation suspected. Conduct CMT paddle test and inspect foremilk daily.';
+            } else {
+              resultCategory = 'Clinical Alert (Grade 2/3)';
+              resultColor = const Color(0xFFC62828);
+              recommendation = 'Acute mastitis indicators detected! Isolate milk, disinfect clusters, and consult veterinarian immediately.';
+            }
+
+            return Container(
+              padding: EdgeInsets.only(
+                left: 20,
+                right: 20,
+                top: 20,
+                bottom: MediaQuery.of(ctx).viewInsets.bottom + 24,
+              ),
+              decoration: const BoxDecoration(
+                color: Color(0xFFF7F8F4),
+                borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+              ),
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Center(
+                      child: Container(
+                        width: 44,
+                        height: 4,
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFD3DBCF),
+                          borderRadius: BorderRadius.circular(2),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        const Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Udder Health Screening',
+                              style: TextStyle(
+                                fontFamily: 'serif',
+                                fontSize: 22,
+                                fontWeight: FontWeight.w700,
+                                color: Color(0xFF1B2E21),
+                              ),
+                            ),
+                            SizedBox(height: 2),
+                            Text(
+                              'Clinical observations & mastitis detection',
+                              style: TextStyle(fontSize: 12.5, color: Color(0xFF6B7B6D)),
+                            ),
+                          ],
+                        ),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: resultColor.withValues(alpha: 0.12),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Text(
+                            '$score%',
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w800,
+                              color: resultColor,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 18),
+
+                    // 1. Select Cow
+                    const Text(
+                      '1. Select Cow',
+                      style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Color(0xFF20352A)),
+                    ),
+                    const SizedBox(height: 8),
+                    SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      child: Row(
+                        children: _herdCows.map((cow) {
+                          final isSelected = cow.id == selectedCow.id;
+                          return Padding(
+                            padding: const EdgeInsets.only(right: 8),
+                            child: ChoiceChip(
+                              label: Text('${cow.name} (${cow.id})'),
+                              selected: isSelected,
+                              selectedColor: const Color(0xFF20352A),
+                              labelStyle: TextStyle(
+                                color: isSelected ? Colors.white : const Color(0xFF20352A),
+                                fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                              ),
+                              onSelected: (val) {
+                                if (val) setSheetState(() => selectedCow = cow);
+                              },
+                            ),
+                          );
+                        }).toList(),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+
+                    // 2. 4-Quarter Check
+                    const Text(
+                      '2. Quarters Showing Changes (Optional)',
+                      style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Color(0xFF20352A)),
+                    ),
+                    const SizedBox(height: 8),
+                    Row(
+                      children: ['FL (Front Left)', 'FR (Front Right)', 'RL (Rear Left)', 'RR (Rear Right)'].map((q) {
+                        final isMarked = affectedQuarters.contains(q);
+                        return Expanded(
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 3),
+                            child: InkWell(
+                              onTap: () {
+                                setSheetState(() {
+                                  if (isMarked) {
+                                    affectedQuarters.remove(q);
+                                  } else {
+                                    affectedQuarters.add(q);
+                                  }
+                                });
+                              },
+                              borderRadius: BorderRadius.circular(10),
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(vertical: 8),
+                                decoration: BoxDecoration(
+                                  color: isMarked ? const Color(0xFFE57373) : Colors.white,
+                                  border: Border.all(
+                                    color: isMarked ? const Color(0xFFD32F2F) : const Color(0xFFE2E7DE),
+                                  ),
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                                child: Text(
+                                  q.split(' ').first,
+                                  textAlign: TextAlign.center,
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w700,
+                                    color: isMarked ? Colors.white : const Color(0xFF20352A),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                        );
+                      }).toList(),
+                    ),
+                    const SizedBox(height: 16),
+
+                    // 3. Swelling & Heat
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Text('Udder Swelling', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF20352A))),
+                              const SizedBox(height: 6),
+                              _buildDropdown(
+                                value: swelling,
+                                items: const ['None', 'Mild', 'Severe'],
+                                onChanged: (v) => setSheetState(() => swelling = v!),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Text('Quarter Heat', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF20352A))),
+                              const SizedBox(height: 6),
+                              _buildDropdown(
+                                value: warmth,
+                                items: const ['Normal', 'Warm', 'Hot'],
+                                onChanged: (v) => setSheetState(() => warmth = v!),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 14),
+
+                    // 4. Foremilk Quality
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Text('Milk Appearance', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF20352A))),
+                              const SizedBox(height: 6),
+                              _buildDropdown(
+                                value: milkAppearance,
+                                items: const ['Normal creamy', 'Watery', 'Yellowish/Discolored', 'Blood-tinged'],
+                                onChanged: (v) => setSheetState(() => milkAppearance = v!),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Text('Consistency', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF20352A))),
+                              const SizedBox(height: 6),
+                              _buildDropdown(
+                                value: milkConsistency,
+                                items: const ['Clear', 'Flakes', 'Clots'],
+                                onChanged: (v) => setSheetState(() => milkConsistency = v!),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 14),
+
+                    // 5. Cow Reaction
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Text('Milking Behavior', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF20352A))),
+                              const SizedBox(height: 6),
+                              _buildDropdown(
+                                value: cowBehavior,
+                                items: const ['Calm', 'Restless / Pain', 'Kicking cluster'],
+                                onChanged: (v) => setSheetState(() => cowBehavior = v!),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Text('Elevated Temp?', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF20352A))),
+                              const SizedBox(height: 6),
+                              InkWell(
+                                onTap: () => setSheetState(() => hasFever = !hasFever),
+                                borderRadius: BorderRadius.circular(12),
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
+                                  decoration: BoxDecoration(
+                                    color: hasFever ? const Color(0xFFFFEBEE) : Colors.white,
+                                    borderRadius: BorderRadius.circular(12),
+                                    border: Border.all(
+                                      color: hasFever ? const Color(0xFFEF5350) : const Color(0xFFE2E7DE),
+                                    ),
+                                  ),
+                                  child: Row(
+                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                    children: [
+                                      Text(
+                                        hasFever ? 'Fever (>39.5°C)' : 'Normal (38.5°C)',
+                                        style: TextStyle(
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.w600,
+                                          color: hasFever ? const Color(0xFFC62828) : const Color(0xFF20352A),
+                                        ),
+                                      ),
+                                      Icon(
+                                        hasFever ? Icons.check_circle_rounded : Icons.circle_outlined,
+                                        size: 16,
+                                        color: hasFever ? const Color(0xFFC62828) : const Color(0xFF8A998E),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 18),
+
+                    // Evaluation Card
+                    Container(
+                      padding: const EdgeInsets.all(14),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(color: resultColor.withValues(alpha: 0.35)),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Icon(
+                                score >= 88
+                                    ? Icons.check_circle_rounded
+                                    : (score >= 65 ? Icons.warning_amber_rounded : Icons.error_outline_rounded),
+                                color: resultColor,
+                                size: 18,
+                              ),
+                              const SizedBox(width: 8),
+                              Text(
+                                resultCategory,
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w700,
+                                  color: resultColor,
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 6),
+                          Text(
+                            recommendation,
+                            style: const TextStyle(fontSize: 12, color: Color(0xFF5E6F62), height: 1.4),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+
+                    // Save Record Action Button
+                    SizedBox(
+                      width: double.infinity,
+                      height: 48,
+                      child: FilledButton(
+                        onPressed: () {
+                          final newRecord = HealthRecord(
+                            cowName: selectedCow.name,
+                            cowId: selectedCow.id,
+                            date: DateTime.now(),
+                            result: score >= 88 ? 'Healthy' : (score >= 65 ? 'Needs follow-up' : 'Clinical Mastitis Alert'),
+                            notes: 'Screening Score: $score%. Udder: $swelling swelling, $warmth temp. Milk: $milkAppearance ($milkConsistency). Quarters: ${affectedQuarters.isEmpty ? "All Clear" : affectedQuarters.join(", ")}.',
+                          );
+
+                          widget.onRecordAdded?.call(newRecord);
+                          Navigator.pop(ctx);
+
+                          _showAssessmentSuccessDialog(selectedCow, score, resultCategory);
+                        },
+                        style: FilledButton.styleFrom(
+                          backgroundColor: const Color(0xFF1B3929),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                        ),
+                        child: const Text('Save to Health Records', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15)),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  void _showAssessmentSuccessDialog(Cow cow, int score, String verdict) {
+    showDialog<void>(
+      context: context,
+      builder: (ctx) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22)),
+          backgroundColor: const Color(0xFFF7F8F4),
+          title: Row(
+            children: const [
+              Icon(Icons.check_circle_rounded, color: Color(0xFF1B3929), size: 26),
+              SizedBox(width: 10),
+              Text(
+                'Assessment Logged',
+                style: TextStyle(fontFamily: 'serif', fontSize: 19, fontWeight: FontWeight.w700, color: Color(0xFF1B2E21)),
+              ),
+            ],
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Assessment successfully saved for ${cow.name} (${cow.id}).',
+                style: const TextStyle(fontSize: 13, color: Color(0xFF4C5E51)),
+              ),
+              const SizedBox(height: 12),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: const Color(0xFFE2E7DE)),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Text('Overall Health Index', style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600, color: Color(0xFF2A3D2F))),
+                    Text('$score%', style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: Color(0xFF1B3929))),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Close', style: TextStyle(color: Color(0xFF6A7B6D))),
+            ),
+            if (widget.onViewRecords != null)
+              FilledButton(
+                onPressed: () {
+                  Navigator.pop(ctx);
+                  widget.onViewRecords!();
+                },
+                style: FilledButton.styleFrom(
+                  backgroundColor: const Color(0xFF1B3929),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                ),
+                child: const Text('View in Records'),
+              ),
+          ],
+        );
+      },
+    );
+  }
+
+  // 2. California Mastitis Test (CMT) Paddle Calculator
+  void _openCmtCalculator() {
+    int q1 = 0, q2 = 0, q3 = 0, q4 = 0;
+
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) {
+        return StatefulBuilder(
+          builder: (ctx, setModalState) {
+            final avgScore = (q1 + q2 + q3 + q4) / 4.0;
+            String cmtVerdict;
+            Color cmtColor;
+            String sccRange;
+
+            if (avgScore <= 0.25) {
+              cmtVerdict = 'Negative (CMT 0)';
+              cmtColor = const Color(0xFF2E7D32);
+              sccRange = '< 200,000 cells/mL (High Quality)';
+            } else if (avgScore <= 1.25) {
+              cmtVerdict = 'Trace to Mild (CMT 1)';
+              cmtColor = const Color(0xFFC48E28);
+              sccRange = '200,000 – 1,200,000 cells/mL (Subclinical)';
+            } else {
+              cmtVerdict = 'Distinct / Strong Reaction (CMT 2-3)';
+              cmtColor = const Color(0xFFC62828);
+              sccRange = '> 2,000,000 cells/mL (Clinical Alert)';
+            }
+
+            return Container(
+              padding: EdgeInsets.only(
+                left: 20,
+                right: 20,
+                top: 20,
+                bottom: MediaQuery.of(ctx).viewInsets.bottom + 24,
+              ),
+              decoration: const BoxDecoration(
+                color: Color(0xFFF7F8F4),
+                borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+              ),
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Center(
+                      child: Container(
+                        width: 44,
+                        height: 4,
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFD3DBCF),
+                          borderRadius: BorderRadius.circular(2),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        const Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'CMT Paddle Calculator',
+                              style: TextStyle(
+                                fontFamily: 'serif',
+                                fontSize: 21,
+                                fontWeight: FontWeight.w700,
+                                color: Color(0xFF1B2E21),
+                              ),
+                            ),
+                            SizedBox(height: 2),
+                            Text(
+                              'California Mastitis Test somatic score',
+                              style: TextStyle(fontSize: 12.5, color: Color(0xFF6B7B6D)),
+                            ),
+                          ],
+                        ),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: cmtColor.withValues(alpha: 0.12),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Text(
+                            cmtVerdict.split(' ').first,
+                            style: TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: cmtColor),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+                    const Text(
+                      'Rate the gel thickening for each quarter well:',
+                      style: TextStyle(fontSize: 12.5, color: Color(0xFF5A6C5D)),
+                    ),
+                    const SizedBox(height: 12),
+
+                    // 4-Paddle well inputs
+                    _buildCmtWell('Front Left (FL)', q1, (v) => setModalState(() => q1 = v)),
+                    const SizedBox(height: 8),
+                    _buildCmtWell('Front Right (FR)', q2, (v) => setModalState(() => q2 = v)),
+                    const SizedBox(height: 8),
+                    _buildCmtWell('Rear Left (RL)', q3, (v) => setModalState(() => q3 = v)),
+                    const SizedBox(height: 8),
+                    _buildCmtWell('Rear Right (RR)', q4, (v) => setModalState(() => q4 = v)),
+                    const SizedBox(height: 16),
+
+                    // Result interpretation
+                    Container(
+                      padding: const EdgeInsets.all(14),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(color: cmtColor.withValues(alpha: 0.35)),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Icon(Icons.science_outlined, color: cmtColor, size: 18),
+                              const SizedBox(width: 8),
+                              Text(cmtVerdict, style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.w700, color: cmtColor)),
+                            ],
+                          ),
+                          const SizedBox(height: 4),
+                          Text('Estimated Somatic Cell Count: $sccRange', style: const TextStyle(fontSize: 12, color: Color(0xFF5E6F62))),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 18),
+                    SizedBox(
+                      width: double.infinity,
+                      height: 48,
+                      child: FilledButton(
+                        onPressed: () {
+                          Navigator.pop(ctx);
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text('CMT calculation recorded: $cmtVerdict'),
+                              backgroundColor: const Color(0xFF1B3929),
+                            ),
+                          );
+                        },
+                        style: FilledButton.styleFrom(
+                          backgroundColor: const Color(0xFF1B3929),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                        ),
+                        child: const Text('Save CMT Analysis', style: TextStyle(fontWeight: FontWeight.w700)),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Widget _buildCmtWell(String label, int currentScore, ValueChanged<int> onSelect) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFFE2E7DE)),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(label, style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600, color: Color(0xFF20352A))),
+          Row(
+            children: [0, 1, 2, 3].map((val) {
+              final isSel = currentScore == val;
+              return GestureDetector(
+                onTap: () => onSelect(val),
+                child: Container(
+                  margin: const EdgeInsets.only(left: 6),
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                  decoration: BoxDecoration(
+                    color: isSel ? const Color(0xFF1B3929) : const Color(0xFFF1F3EC),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Text(
+                    val == 0 ? '0' : '+$val',
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                      color: isSel ? Colors.white : const Color(0xFF334638),
+                    ),
+                  ),
+                ),
+              );
+            }).toList(),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // 3. AI Photo / Thermal Scanner Simulation
+  void _openAiPhotoScanner() {
+    bool isScanning = false;
+    bool scanDone = false;
+
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) {
+        return StatefulBuilder(
+          builder: (ctx, setScanState) {
+            return Container(
+              padding: const EdgeInsets.all(20),
+              decoration: const BoxDecoration(
+                color: Color(0xFF161817),
+                borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    width: 44,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF3B403D),
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text(
+                        'AI Udder Vision Scanner',
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.w700,
+                          color: Colors.white,
+                        ),
+                      ),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF285536),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: const Text('AI Model v2.4', style: TextStyle(fontSize: 11, color: Colors.white, fontWeight: FontWeight.w600)),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 14),
+
+                  // Viewfinder
+                  Container(
+                    width: double.infinity,
+                    height: 200,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF222624),
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(color: const Color(0xFF3B443F)),
+                    ),
+                    clipBehavior: Clip.antiAlias,
+                    child: Stack(
+                      alignment: Alignment.center,
+                      children: [
+                        // Viewfinder reticle
+                        Positioned.fill(
+                          child: Padding(
+                            padding: const EdgeInsets.all(18),
+                            child: DecoratedBox(
+                              decoration: BoxDecoration(
+                                border: Border.all(
+                                  color: isScanning ? const Color(0xFF4CAF50) : const Color(0xFF6C7C71),
+                                  width: 1.5,
+                                ),
+                                borderRadius: BorderRadius.circular(14),
+                              ),
+                            ),
+                          ),
+                        ),
+                        if (isScanning)
+                          const Center(
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                CircularProgressIndicator(color: Color(0xFF81C784)),
+                                SizedBox(height: 12),
+                                Text(
+                                  'Analyzing quarter symmetry & thermal index...',
+                                  style: TextStyle(color: Color(0xFFA5D6A7), fontSize: 12),
+                                ),
+                              ],
+                            ),
+                          )
+                        else if (scanDone)
+                          Padding(
+                            padding: const EdgeInsets.all(16),
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                const Icon(Icons.verified_rounded, color: Color(0xFF81C784), size: 36),
+                                const SizedBox(height: 8),
+                                const Text('Scan Complete: Udder Symmetry 98.4%', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 13)),
+                                const SizedBox(height: 4),
+                                const Text('Thermal Index: 38.6°C (Normal) · Confidence: 97.2%', style: TextStyle(color: Color(0xFFB0BEC5), fontSize: 11)),
+                              ],
+                            ),
+                          )
+                        else
+                          Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: const [
+                              Icon(Icons.center_focus_strong_rounded, color: Color(0xFF8C9E91), size: 44),
+                              SizedBox(height: 8),
+                              Text('Align udder inside frame', style: TextStyle(color: Color(0xFFB5C4BA), fontSize: 13)),
+                            ],
+                          ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 18),
+
+                  SizedBox(
+                    width: double.infinity,
+                    height: 46,
+                    child: FilledButton.icon(
+                      onPressed: isScanning
+                          ? null
+                          : () {
+                              setScanState(() {
+                                isScanning = true;
+                                scanDone = false;
+                              });
+                              Future.delayed(const Duration(milliseconds: 1400), () {
+                                if (ctx.mounted) {
+                                  setScanState(() {
+                                    isScanning = false;
+                                    scanDone = true;
+                                  });
+                                }
+                              });
+                            },
+                      icon: const Icon(Icons.camera_alt_rounded, size: 18),
+                      label: Text(scanDone ? 'Scan Again' : 'Capture & Analyze Udder'),
+                      style: FilledButton.styleFrom(
+                        backgroundColor: const Color(0xFF285536),
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Widget _buildDropdown({
+    required String value,
+    required List<String> items,
+    required ValueChanged<String?> onChanged,
+  }) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFFE2E7DE)),
+      ),
+      child: DropdownButtonHideUnderline(
+        child: DropdownButton<String>(
+          value: value,
+          isExpanded: true,
+          icon: const Icon(Icons.keyboard_arrow_down_rounded, size: 18, color: Color(0xFF5A6C5D)),
+          items: items.map((e) => DropdownMenuItem(value: e, child: Text(e, style: const TextStyle(fontSize: 12.5, color: Color(0xFF20352A))))).toList(),
+          onChanged: onChanged,
+        ),
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -2153,51 +3095,46 @@ class AssessPage extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                AssessHeader(onBack: onBack),
+                // Preserved Header
+                AssessHeader(onBack: widget.onBack),
 
                 Expanded(
                   child: ListView(
-                    padding: const EdgeInsets.only(top: 12, bottom: 24),
+                    padding: const EdgeInsets.only(top: 8, bottom: 24),
                     children: [
+                      // Preserved Welcome Title & Subtitle
                       const Padding(
                         padding: EdgeInsets.symmetric(horizontal: 16),
                         child: Text(
                           'Welcome to health screening',
                           style: TextStyle(
                             color: Color(0xFF20352A),
-                            fontSize: 17,
+                            fontSize: 18,
                             fontWeight: FontWeight.w800,
                           ),
                         ),
                       ),
-
-                      const SizedBox(height: 5),
-
+                      const SizedBox(height: 4),
                       const Padding(
                         padding: EdgeInsets.symmetric(horizontal: 16),
                         child: Text(
                           'Record observations and check for possible warning signs.',
                           style: TextStyle(
                             color: Color(0xFF77857A),
-                            fontSize: 12,
+                            fontSize: 12.5,
                             height: 1.4,
                           ),
                         ),
                       ),
+                      const SizedBox(height: 16),
 
-                      const SizedBox(height: 18),
-
+                      // Preserved Banner with cow image kept exactly as it is
                       AssessmentBanner(
-                        onAssessNow: () {
-                          showMessage(
-                            context,
-                            'Assessment form will be connected next.',
-                          );
-                        },
+                        onAssessNow: () => _startAssessmentWizard(),
                       ),
+                      const SizedBox(height: 20),
 
-                      const SizedBox(height: 24),
-
+                      // Preserved "Before you begin" guidance card
                       const Padding(
                         padding: EdgeInsets.symmetric(horizontal: 16),
                         child: Text(
@@ -2209,16 +3146,14 @@ class AssessPage extends StatelessWidget {
                           ),
                         ),
                       ),
-
                       const SizedBox(height: 10),
-
                       Padding(
                         padding: const EdgeInsets.symmetric(horizontal: 16),
                         child: Container(
                           padding: const EdgeInsets.all(14),
                           decoration: BoxDecoration(
                             color: Colors.white,
-                            borderRadius: BorderRadius.circular(15),
+                            borderRadius: BorderRadius.circular(16),
                             border: Border.all(color: const Color(0xFFE7EAE1)),
                           ),
                           child: const Row(
@@ -2232,9 +3167,7 @@ class AssessPage extends StatelessWidget {
                               SizedBox(width: 10),
                               Expanded(
                                 child: Text(
-                                  'Choose the cow you want to assess and '
-                                  'record any changes you observe. Screening '
-                                  'provides guidance, not a veterinary diagnosis.',
+                                  'Choose the cow you want to assess and record any changes you observe. Screening provides guidance, not a veterinary diagnosis.',
                                   style: TextStyle(
                                     color: Color(0xFF77857A),
                                     fontSize: 12,
@@ -2246,6 +3179,357 @@ class AssessPage extends StatelessWidget {
                           ),
                         ),
                       ),
+                      const SizedBox(height: 22),
+
+                      // NEW FUNCTION: Quick Cow Screening Selector
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            const Text(
+                              'Choose cow to assess',
+                              style: TextStyle(
+                                color: Color(0xFF20352A),
+                                fontSize: 16,
+                                fontWeight: FontWeight.w800,
+                              ),
+                            ),
+                            Text(
+                              '${_herdCows.length} cows ready',
+                              style: const TextStyle(fontSize: 12, color: Color(0xFF6B7B6D)),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 10),
+                      SizedBox(
+                        height: 110,
+                        child: ListView.separated(
+                          padding: const EdgeInsets.symmetric(horizontal: 16),
+                          scrollDirection: Axis.horizontal,
+                          itemCount: _herdCows.length,
+                          separatorBuilder: (_, _) => const SizedBox(width: 10),
+                          itemBuilder: (context, index) {
+                            final cow = _herdCows[index];
+                            final isHealthy = cow.status == 'Healthy';
+                            return InkWell(
+                              onTap: () => _startAssessmentWizard(cow),
+                              borderRadius: BorderRadius.circular(16),
+                              child: Container(
+                                width: 148,
+                                padding: const EdgeInsets.all(12),
+                                decoration: BoxDecoration(
+                                  color: Colors.white,
+                                  borderRadius: BorderRadius.circular(16),
+                                  border: Border.all(color: const Color(0xFFE4E9E0)),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: Colors.black.withValues(alpha: 0.02),
+                                      blurRadius: 4,
+                                      offset: const Offset(0, 2),
+                                    ),
+                                  ],
+                                ),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    Row(
+                                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                      children: [
+                                        Text(
+                                          cow.name,
+                                          style: const TextStyle(
+                                            fontSize: 14,
+                                            fontWeight: FontWeight.w700,
+                                            color: Color(0xFF1B2E21),
+                                          ),
+                                        ),
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                          decoration: BoxDecoration(
+                                            color: isHealthy ? const Color(0xFFE2EFE3) : const Color(0xFFFDF0D5),
+                                            borderRadius: BorderRadius.circular(8),
+                                          ),
+                                          child: Text(
+                                            '${cow.healthScore}%',
+                                            style: TextStyle(
+                                              fontSize: 10.5,
+                                              fontWeight: FontWeight.w700,
+                                              color: isHealthy ? const Color(0xFF2A6836) : const Color(0xFFA67313),
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                    Text(
+                                      '${cow.id} · ${cow.breed}',
+                                      style: const TextStyle(fontSize: 11, color: Color(0xFF758578)),
+                                    ),
+                                    Row(
+                                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                      children: const [
+                                        Text('Tap to check', style: TextStyle(fontSize: 10.5, color: Color(0xFF176B45), fontWeight: FontWeight.w600)),
+                                        Icon(Icons.arrow_forward_rounded, size: 14, color: Color(0xFF176B45)),
+                                      ],
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            );
+                          },
+                        ),
+                      ),
+                      const SizedBox(height: 22),
+
+                      // NEW FUNCTION: Screening Tools Section (CMT, AI Scanner, Checklist)
+                      const Padding(
+                        padding: EdgeInsets.symmetric(horizontal: 16),
+                        child: Text(
+                          'Screening Tools',
+                          style: TextStyle(
+                            color: Color(0xFF20352A),
+                            fontSize: 16,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 10),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        child: Row(
+                          children: [
+                            // Tool 1: CMT Calculator
+                            Expanded(
+                              child: InkWell(
+                                onTap: _openCmtCalculator,
+                                borderRadius: BorderRadius.circular(16),
+                                child: Container(
+                                  padding: const EdgeInsets.all(14),
+                                  decoration: BoxDecoration(
+                                    color: Colors.white,
+                                    borderRadius: BorderRadius.circular(16),
+                                    border: Border.all(color: const Color(0xFFE4E9E0)),
+                                  ),
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Container(
+                                        padding: const EdgeInsets.all(8),
+                                        decoration: BoxDecoration(
+                                          color: const Color(0xFFE8F3EA),
+                                          borderRadius: BorderRadius.circular(10),
+                                        ),
+                                        child: const Icon(Icons.science_outlined, color: Color(0xFF176B45), size: 20),
+                                      ),
+                                      const SizedBox(height: 10),
+                                      const Text(
+                                        'CMT Paddle',
+                                        style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: Color(0xFF1B2E21)),
+                                      ),
+                                      const SizedBox(height: 2),
+                                      const Text(
+                                        'Paddle reaction & Somatic cell count',
+                                        style: TextStyle(fontSize: 10.5, color: Color(0xFF758578)),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 10),
+                            // Tool 2: AI Photo Scanner
+                            Expanded(
+                              child: InkWell(
+                                onTap: _openAiPhotoScanner,
+                                borderRadius: BorderRadius.circular(16),
+                                child: Container(
+                                  padding: const EdgeInsets.all(14),
+                                  decoration: BoxDecoration(
+                                    color: Colors.white,
+                                    borderRadius: BorderRadius.circular(16),
+                                    border: Border.all(color: const Color(0xFFE4E9E0)),
+                                  ),
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Container(
+                                        padding: const EdgeInsets.all(8),
+                                        decoration: BoxDecoration(
+                                          color: const Color(0xFFEBF2FA),
+                                          borderRadius: BorderRadius.circular(10),
+                                        ),
+                                        child: const Icon(Icons.camera_alt_outlined, color: Color(0xFF1976D2), size: 20),
+                                      ),
+                                      const SizedBox(height: 10),
+                                      const Text(
+                                        'AI Vision Scan',
+                                        style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: Color(0xFF1B2E21)),
+                                      ),
+                                      const SizedBox(height: 2),
+                                      const Text(
+                                        'Photo thermal & symmetry analysis',
+                                        style: TextStyle(fontSize: 10.5, color: Color(0xFF758578)),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 22),
+
+                      // NEW FUNCTION: Warning Signs to Watch Guide
+                      const Padding(
+                        padding: EdgeInsets.symmetric(horizontal: 16),
+                        child: Text(
+                          'Warning signs to watch',
+                          style: TextStyle(
+                            color: Color(0xFF20352A),
+                            fontSize: 16,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 10),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        child: Column(
+                          children: [
+                            _buildWarningCard(
+                              icon: Icons.water_drop_outlined,
+                              title: 'Foremilk Abnormalities',
+                              desc: 'Watery secretions, yellow whey, or clotted flakes on strip cup.',
+                              tag: 'High Priority',
+                              color: const Color(0xFFC62828),
+                            ),
+                            const SizedBox(height: 8),
+                            _buildWarningCard(
+                              icon: Icons.thermostat_rounded,
+                              title: 'Quarter Warmth & Swelling',
+                              desc: 'Quarter feels hot, firm, or enlarged compared to opposite sides.',
+                              tag: 'Inflammation',
+                              color: const Color(0xFFC48E28),
+                            ),
+                            const SizedBox(height: 8),
+                            _buildWarningCard(
+                              icon: Icons.shield_outlined,
+                              title: 'Pain or Kicking During Milking',
+                              desc: 'Cow flinches or resists cluster attachment due to udder tenderness.',
+                              tag: 'Behavioral',
+                              color: const Color(0xFF176B45),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 22),
+
+                      // NEW FUNCTION: Recent Assessments Log
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            const Text(
+                              'Recent herd assessments',
+                              style: TextStyle(
+                                color: Color(0xFF20352A),
+                                fontSize: 16,
+                                fontWeight: FontWeight.w800,
+                              ),
+                            ),
+                            if (widget.onViewRecords != null)
+                              InkWell(
+                                onTap: widget.onViewRecords,
+                                child: const Text(
+                                  'View all',
+                                  style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700, color: Color(0xFF176B45)),
+                                ),
+                              ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 10),
+                      if (widget.records.isEmpty)
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 16),
+                          child: Container(
+                            padding: const EdgeInsets.all(16),
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(16),
+                              border: Border.all(color: const Color(0xFFE5EDE0)),
+                            ),
+                            child: const Center(
+                              child: Text(
+                                'No screenings recorded yet. Tap "Assess now" to begin.',
+                                style: TextStyle(fontSize: 12, color: Color(0xFF758578)),
+                              ),
+                            ),
+                          ),
+                        )
+                      else
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 16),
+                          child: Column(
+                            children: widget.records.take(2).map((rec) {
+                              final isHealthy = rec.result == 'Healthy';
+                              return Container(
+                                margin: const EdgeInsets.only(bottom: 8),
+                                padding: const EdgeInsets.all(12),
+                                decoration: BoxDecoration(
+                                  color: Colors.white,
+                                  borderRadius: BorderRadius.circular(14),
+                                  border: Border.all(color: const Color(0xFFE5EDE0)),
+                                ),
+                                child: Row(
+                                  children: [
+                                    Container(
+                                      padding: const EdgeInsets.all(8),
+                                      decoration: BoxDecoration(
+                                        color: isHealthy ? const Color(0xFFE3EFE3) : const Color(0xFFFDF0D5),
+                                        shape: BoxShape.circle,
+                                      ),
+                                      child: Icon(
+                                        isHealthy ? Icons.check_circle_outline_rounded : Icons.warning_amber_rounded,
+                                        color: isHealthy ? const Color(0xFF2A6836) : const Color(0xFFA67313),
+                                        size: 18,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 10),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            '${rec.cowName} (${rec.cowId})',
+                                            style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: Color(0xFF1B2E21)),
+                                          ),
+                                          const SizedBox(height: 2),
+                                          Text(
+                                            rec.result,
+                                            style: TextStyle(
+                                              fontSize: 11,
+                                              fontWeight: FontWeight.w600,
+                                              color: isHealthy ? const Color(0xFF2A6836) : const Color(0xFFA67313),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                    Text(
+                                      '${rec.date.day}/${rec.date.month}',
+                                      style: const TextStyle(fontSize: 11.5, color: Color(0xFF758578)),
+                                    ),
+                                  ],
+                                ),
+                              );
+                            }).toList(),
+                          ),
+                        ),
                     ],
                   ),
                 ),
@@ -2253,6 +3537,60 @@ class AssessPage extends StatelessWidget {
             ),
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _buildWarningCard({
+    required IconData icon,
+    required String title,
+    required String desc,
+    required String tag,
+    required Color color,
+  }) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: const Color(0xFFE5EDE0)),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(7),
+            decoration: BoxDecoration(
+              color: color.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(9),
+            ),
+            child: Icon(icon, color: color, size: 18),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(title, style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700, color: Color(0xFF1B2E21))),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: color.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Text(tag, style: TextStyle(fontSize: 9.5, fontWeight: FontWeight.w700, color: color)),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 3),
+                Text(desc, style: const TextStyle(fontSize: 11, color: Color(0xFF6B7B6D), height: 1.35)),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
